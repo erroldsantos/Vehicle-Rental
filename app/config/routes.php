@@ -1,0 +1,78 @@
+<?php
+defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
+/**
+ * ------------------------------------------------------------------
+ * LavaLust - an opensource lightweight PHP MVC Framework
+ * ------------------------------------------------------------------
+ *
+ * MIT License
+ *
+ * Copyright (c) 2020 Ronald M. Marasigan
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * @package LavaLust
+ * @author Ronald M. Marasigan <ronald.marasigan@yahoo.com>
+ * @since Version 1
+ * @link https://github.com/ronmarasigan/LavaLust
+ * @license https://opensource.org/licenses/MIT MIT License
+ */
+
+/*
+| -------------------------------------------------------------------
+| URI ROUTING
+| -------------------------------------------------------------------
+| Here is where you can register web routes for your application.
+|
+|
+*/
+
+// Default route
+$router->get('/', 'Welcome::index');
+
+// API Routes for Vue Frontend Integration
+$router->group('/api', function() use ($router) {
+    
+    // Health check endpoint
+    $router->get('/health', 'ApiController::health');
+    
+    // Configuration endpoint
+    $router->get('/config', 'ApiController::config');
+    
+    // RESTful API endpoints for items
+    $router->get('/items', 'ApiController::index');
+    $router->get('/items/{id}', 'ApiController::show');
+    $router->post('/items', 'ApiController::create');
+    $router->put('/items/{id}', 'ApiController::update');
+    $router->delete('/items/{id}', 'ApiController::delete');
+    
+    // Admin Dashboard API endpoints
+    $router->get('/admin/stats', 'AdminController::stats');
+    $router->get('/admin/overview', 'AdminController::overview');
+    $router->get('/admin/users', 'AdminController::users');
+    $router->post('/admin/users', 'AdminController::create_user');
+    $router->put('/admin/users/{id}', 'AdminController::update_user');
+    $router->delete('/admin/users/{id}', 'AdminController::delete_user');
+    $router->get('/admin/logs', 'AdminController::logs');
+    $router->get('/admin/analytics', 'AdminController::analytics');
+    $router->get('/admin/settings', 'AdminController::settings');
+    $router->post('/admin/settings', 'AdminController::settings');
+    $router->get('/admin/export', 'AdminController::export');
+    
+});
