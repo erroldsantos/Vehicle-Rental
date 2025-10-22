@@ -79,6 +79,14 @@ $router->group('/api', function() use ($router) {
     $router->put('/maintenance/{id}/complete', 'MaintenanceController::complete');
     $router->delete('/maintenance/{id}', 'MaintenanceController::delete');
     
+    // User Management API endpoints
+    $router->get('/users', 'UsersController::index');
+    $router->get('/users/{id}', 'UsersController::show');
+    $router->post('/users', 'UsersController::create');
+    $router->put('/users/{id}', 'UsersController::update');
+    $router->delete('/users/{id}', 'UsersController::delete');
+    $router->post('/users/login', 'UsersController::login');
+    
     // Admin Dashboard API endpoints
     $router->get('/admin/stats', 'AdminController::stats');
     $router->get('/admin/overview', 'AdminController::overview');
