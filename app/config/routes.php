@@ -69,6 +69,15 @@ $router->group('/api', function() use ($router) {
     $router->put('/vehicles/{id}', 'VehiclesController::update');
     $router->delete('/vehicles/{id}', 'VehiclesController::delete');
     
+    // Maintenance Management API endpoints
+    $router->get('/maintenance', 'MaintenanceController::index');
+    $router->get('/maintenance/vehicles', 'MaintenanceController::vehicles');
+    $router->get('/maintenance/{id}', 'MaintenanceController::show');
+    $router->post('/maintenance', 'MaintenanceController::create');
+    $router->put('/maintenance/{id}', 'MaintenanceController::update');
+    $router->put('/maintenance/{id}/complete', 'MaintenanceController::complete');
+    $router->delete('/maintenance/{id}', 'MaintenanceController::delete');
+    
     // Admin Dashboard API endpoints
     $router->get('/admin/stats', 'AdminController::stats');
     $router->get('/admin/overview', 'AdminController::overview');
