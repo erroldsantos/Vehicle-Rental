@@ -10,6 +10,9 @@
         <button class="action-btn secondary" @click="loadMaintenance">
           <i class="fas fa-sync-alt"></i> Refresh
         </button>
+        <button class="action-btn secondary" @click="syncVehicleStatuses" style="margin-left: 8px;">
+          <i class="fas fa-cogs"></i> Sync Statuses
+        </button>
       </div>
     </div>
 
@@ -424,6 +427,23 @@ export default {
       }
     }
 
+    const syncVehicleStatuses = async () => {
+      if (confirm('This will sync all vehicle statuses with their maintenance schedules. Continue?')) {
+        try {
+          console.log('Syncing vehicle statuses...')
+          const response = await apiStore.post('/maintenance/sync', {})
+          console.log('Sync response:', response)
+          
+          await loadMaintenance()
+          
+          alert(`Sync completed! ${response.vehicles_set_to_maintenance} vehicles set to maintenance, ${response.vehicles_reset_to_available} reset to available.`)
+        } catch (error) {
+          console.error('Sync error:', error)
+          alert('Failed to sync vehicle statuses. Please try again.')
+        }
+      }
+    }
+
     // Helper functions
     const formatDate = (dateString) => {
       return new Date(dateString).toLocaleDateString()
@@ -458,6 +478,7 @@ export default {
       cancelEdit,
       completeMaintenance,
       deleteMaintenance,
+      syncVehicleStatuses,
       formatDate,
       formatStatus
     }

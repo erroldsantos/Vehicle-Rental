@@ -72,6 +72,7 @@ $router->group('/api', function() use ($router) {
     // Maintenance Management API endpoints
     $router->get('/maintenance', 'MaintenanceController::index');
     $router->get('/maintenance/vehicles', 'MaintenanceController::vehicles');
+    $router->post('/maintenance/sync', 'MaintenanceController::sync');
     $router->get('/maintenance/{id}', 'MaintenanceController::show');
     $router->post('/maintenance', 'MaintenanceController::create');
     $router->put('/maintenance/{id}', 'MaintenanceController::update');

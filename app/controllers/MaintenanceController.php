@@ -91,7 +91,8 @@ class MaintenanceController extends Controller {
                         model, 
                         year, 
                         plate_number,
-                        CONCAT(brand, ' ', model, ' (', year, ') - ', plate_number) as display_name
+                        status,
+                        CONCAT(brand, ' ', model, ' (', year, ') - ', plate_number, ' [', UPPER(status), ']') as display_name
                     FROM vehicles 
                     WHERE deleted_at IS NULL AND status != 'rented'
                     ORDER BY brand, model";
@@ -144,6 +145,12 @@ class MaintenanceController extends Controller {
             ]);
             
             $id = $pdo->lastInsertId();
+            
+            // Update vehicle status to maintenance if maintenance is scheduled
+            if (($input['status'] ?? 'scheduled') === 'scheduled') {
+                $updateVehicle = $pdo->prepare("UPDATE vehicles SET status = 'maintenance' WHERE id = ?");
+                $updateVehicle->execute([(int)$input['vehicle_id']]);
+            }
             
             // Fetch the created record with vehicle info
             $sql = "SELECT 
@@ -210,6 +217,19 @@ class MaintenanceController extends Controller {
             $stmt = $pdo->prepare($sql);
             $stmt->execute($values);
             
+            // Update vehicle status based on maintenance status change
+            if (isset($input['status'])) {
+                if ($input['status'] === 'completed') {
+                    // Set vehicle status to available when maintenance is completed
+                    $updateVehicle = $pdo->prepare("UPDATE vehicles SET status = 'available' WHERE id = ?");
+                    $updateVehicle->execute([(int)$maintenance['vehicle_id']]);
+                } elseif ($input['status'] === 'scheduled') {
+                    // Set vehicle status to maintenance when maintenance is scheduled
+                    $updateVehicle = $pdo->prepare("UPDATE vehicles SET status = 'maintenance' WHERE id = ?");
+                    $updateVehicle->execute([(int)$maintenance['vehicle_id']]);
+                }
+            }
+            
             // Fetch updated record with vehicle info
             $sql = "SELECT 
                         m.*, 
@@ -240,10 +260,12 @@ class MaintenanceController extends Controller {
             $pdo = new PDO('mysql:host=localhost;dbname=vehicle_rental;charset=utf8mb4', 'root', '');
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             
-            // Check if maintenance record exists
-            $stmt = $pdo->prepare("SELECT id FROM maintenance WHERE id = ? AND deleted_at IS NULL");
+            // Check if maintenance record exists and get vehicle_id
+            $stmt = $pdo->prepare("SELECT vehicle_id, status FROM maintenance WHERE id = ? AND deleted_at IS NULL");
             $stmt->execute([(int)$id]);
-            if (!$stmt->fetch()) {
+            $maintenance = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$maintenance) {
                 $this->api->respond_error('Maintenance record not found', 404);
                 return;
             }
@@ -251,6 +273,12 @@ class MaintenanceController extends Controller {
             // Soft delete
             $stmt = $pdo->prepare("UPDATE maintenance SET deleted_at = NOW() WHERE id = ?");
             $stmt->execute([(int)$id]);
+            
+            // If the deleted maintenance was scheduled, set vehicle back to available
+            if ($maintenance['status'] === 'scheduled') {
+                $updateVehicle = $pdo->prepare("UPDATE vehicles SET status = 'available' WHERE id = ?");
+                $updateVehicle->execute([(int)$maintenance['vehicle_id']]);
+            }
             
             $this->api->respond(['message' => 'Maintenance record deleted']);
             
@@ -285,6 +313,10 @@ class MaintenanceController extends Controller {
             $stmt = $pdo->prepare("UPDATE maintenance SET status = 'completed', cost = ? WHERE id = ?");
             $stmt->execute([$cost, (int)$id]);
             
+            // Update vehicle status back to available when maintenance is completed
+            $updateVehicle = $pdo->prepare("UPDATE vehicles SET status = 'available' WHERE id = ?");
+            $updateVehicle->execute([(int)$maintenance['vehicle_id']]);
+            
             // Fetch updated record
             $sql = "SELECT 
                         m.*, 
@@ -301,6 +333,53 @@ class MaintenanceController extends Controller {
             $updated = $stmt->fetch(PDO::FETCH_ASSOC);
             
             $this->api->respond($updated);
+            
+        } catch (Exception $e) {
+            $this->api->respond_error('Database error: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // POST /maintenance/sync - Sync vehicle statuses with existing maintenance records
+    public function sync() {
+        $this->api->require_method('POST');
+
+        try {
+            $pdo = new PDO('mysql:host=localhost;dbname=vehicle_rental;charset=utf8mb4', 'root', '');
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            // Get all scheduled maintenance records
+            $stmt = $pdo->query("SELECT DISTINCT vehicle_id FROM maintenance WHERE status = 'scheduled' AND deleted_at IS NULL");
+            $scheduledVehicles = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            $updatedCount = 0;
+            
+            // Update vehicle statuses to maintenance for all vehicles with scheduled maintenance
+            if (!empty($scheduledVehicles)) {
+                $placeholders = str_repeat('?,', count($scheduledVehicles) - 1) . '?';
+                $updateStmt = $pdo->prepare("UPDATE vehicles SET status = 'maintenance' WHERE id IN ($placeholders) AND status != 'rented'");
+                $updateStmt->execute($scheduledVehicles);
+                $updatedCount = $updateStmt->rowCount();
+            }
+            
+            // Also ensure vehicles without scheduled maintenance are available (if not rented)
+            $stmt = $pdo->query("
+                UPDATE vehicles 
+                SET status = 'available' 
+                WHERE status = 'maintenance' 
+                AND id NOT IN (
+                    SELECT vehicle_id FROM maintenance 
+                    WHERE status = 'scheduled' AND deleted_at IS NULL
+                )
+                AND status != 'rented'
+            ");
+            $resetCount = $stmt->rowCount();
+            
+            $this->api->respond([
+                'message' => 'Vehicle statuses synchronized with maintenance records',
+                'vehicles_set_to_maintenance' => $updatedCount,
+                'vehicles_reset_to_available' => $resetCount,
+                'scheduled_vehicles' => $scheduledVehicles
+            ]);
             
         } catch (Exception $e) {
             $this->api->respond_error('Database error: ' . $e->getMessage(), 500);
