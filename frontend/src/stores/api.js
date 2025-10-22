@@ -3,7 +3,7 @@ import axios from 'axios'
 
 export const useApiStore = defineStore('api', {
   state: () => ({
-    baseUrl: 'http://localhost:3000/api',
+    baseUrl: '/api',
     connected: false,
     loading: false
   }),
