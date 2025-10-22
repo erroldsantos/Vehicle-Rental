@@ -87,6 +87,16 @@ $router->group('/api', function() use ($router) {
     $router->delete('/users/{id}', 'UsersController::delete');
     $router->post('/users/login', 'UsersController::login');
     
+    // Booking Management API endpoints
+    $router->get('/bookings', 'BookingsController::index');
+    $router->get('/bookings/available-vehicles', 'BookingsController::availableVehicles');
+    $router->get('/bookings/users', 'BookingsController::users');
+    $router->get('/bookings/{id}', 'BookingsController::show');
+    $router->post('/bookings', 'BookingsController::create');
+    $router->put('/bookings/{id}', 'BookingsController::update');
+    $router->put('/bookings/{id}/cancel', 'BookingsController::cancel');
+    $router->delete('/bookings/{id}', 'BookingsController::delete');
+    
     // Admin Dashboard API endpoints
     $router->get('/admin/stats', 'AdminController::stats');
     $router->get('/admin/overview', 'AdminController::overview');
