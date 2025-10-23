@@ -53,7 +53,15 @@
         <h2>Recent Bookings</h2>
         <a href="#" class="view-all-link" @click.prevent="navigateToBookings">View All →</a>
       </div>
-      <div class="simple-table">
+      <div v-if="loading" class="loading-state">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading recent bookings...</p>
+      </div>
+      <div v-else-if="recentBookings.length === 0" class="empty-state">
+        <i class="fas fa-calendar"></i>
+        <p>No recent bookings found</p>
+      </div>
+      <div v-else class="simple-table">
         <div class="table-row header-row">
           <span>Reference</span>
           <span>Vehicle</span>
@@ -73,7 +81,15 @@
         <h2>Vehicle Status</h2>
         <a href="#" class="view-all-link" @click.prevent="navigateToVehicles">View All →</a>
       </div>
-      <div class="simple-table">
+      <div v-if="loading" class="loading-state">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading vehicle status...</p>
+      </div>
+      <div v-else-if="vehicleStatus.length === 0" class="empty-state">
+        <i class="fas fa-car"></i>
+        <p>No vehicles found</p>
+      </div>
+      <div v-else class="simple-table">
         <div class="table-row header-row">
           <span>Vehicle</span>
           <span>Plate</span>
@@ -103,23 +119,15 @@ export default {
     const router = useRouter()
     
     const stats = ref({
-      totalVehicles: 25,
-      activeBookings: 12,
-      totalRevenue: '5,480',
-      maintenanceDue: 3
+      totalVehicles: 0,
+      activeBookings: 0,
+      totalRevenue: '0',
+      maintenanceDue: 0
     })
 
-    const recentBookings = ref([
-      { id: 1, reference: 'BK-001234', vehicle: 'Toyota Camry', status: 'Confirmed' },
-      { id: 2, reference: 'BK-001235', vehicle: 'Honda CR-V', status: 'Pending' },
-      { id: 3, reference: 'BK-001236', vehicle: 'Ford Transit', status: 'Completed' }
-    ])
-
-    const vehicleStatus = ref([
-      { id: 1, name: 'Toyota Camry', plate: 'ABC-1234', status: 'Available' },
-      { id: 2, name: 'Honda CR-V', plate: 'DEF-5678', status: 'Rented' },
-      { id: 3, name: 'Ford Transit', plate: 'GHI-9012', status: 'Maintenance' }
-    ])
+    const recentBookings = ref([])
+    const vehicleStatus = ref([])
+    const loading = ref(true)
 
     const quickAction = (type) => {
       const actions = {
@@ -143,12 +151,127 @@ export default {
     }
 
     const loadDashboardData = async () => {
-      // Simulate API loading - replace with actual API calls
+      loading.value = true
       try {
-        // Load real data from your LavaLust backend here
-        console.log('Loading dashboard data...')
+        // Load dashboard statistics
+        await Promise.all([
+          loadVehicleStats(),
+          loadBookingStats(),
+          loadRecentBookings(),
+          loadVehicleStatus(),
+          loadMaintenanceStats()
+        ])
       } catch (error) {
         console.error('Failed to load dashboard data:', error)
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const loadVehicleStats = async () => {
+      try {
+        const response = await fetch('/api/vehicles')
+        if (response.ok) {
+          const data = await response.json()
+          const vehicles = data.vehicles || data.data || []
+          stats.value.totalVehicles = vehicles.length
+        }
+      } catch (error) {
+        console.error('Error loading vehicle stats:', error)
+      }
+    }
+
+    const loadBookingStats = async () => {
+      try {
+        const response = await fetch('/api/bookings')
+        if (response.ok) {
+          const data = await response.json()
+          const bookings = data.bookings || data.data || []
+          
+          // Count active bookings (confirmed, pending)
+          const activeBookings = bookings.filter(booking => 
+            booking.status === 'confirmed' || booking.status === 'pending'
+          ).length
+          
+          stats.value.activeBookings = activeBookings
+          
+          // Calculate total revenue from completed bookings
+          const totalRevenue = bookings
+            .filter(booking => booking.status === 'completed')
+            .reduce((sum, booking) => sum + parseFloat(booking.total_amount || 0), 0)
+          
+          stats.value.totalRevenue = totalRevenue.toFixed(2)
+        }
+      } catch (error) {
+        console.error('Error loading booking stats:', error)
+      }
+    }
+
+    const loadRecentBookings = async () => {
+      try {
+        const response = await fetch('/api/bookings')
+        if (response.ok) {
+          const data = await response.json()
+          const bookings = data.bookings || data.data || []
+          
+          // Get the 3 most recent bookings
+          const recent = bookings
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .slice(0, 3)
+            .map(booking => ({
+              id: booking.id,
+              reference: booking.booking_reference,
+              vehicle: `${booking.brand || ''} ${booking.model || ''}`.trim() || 'Unknown Vehicle',
+              status: booking.status.charAt(0).toUpperCase() + booking.status.slice(1)
+            }))
+          
+          recentBookings.value = recent
+        }
+      } catch (error) {
+        console.error('Error loading recent bookings:', error)
+      }
+    }
+
+    const loadVehicleStatus = async () => {
+      try {
+        const response = await fetch('/api/vehicles')
+        if (response.ok) {
+          const data = await response.json()
+          const vehicles = data.vehicles || data.data || []
+          
+          // Map vehicles to status format
+          const vehicleStatusData = vehicles.slice(0, 3).map(vehicle => ({
+            id: vehicle.id,
+            name: `${vehicle.brand} ${vehicle.model}`,
+            plate: vehicle.plate_number,
+            status: vehicle.status ? vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1) : 'Available'
+          }))
+          
+          vehicleStatus.value = vehicleStatusData
+        }
+      } catch (error) {
+        console.error('Error loading vehicle status:', error)
+      }
+    }
+
+    const loadMaintenanceStats = async () => {
+      try {
+        const response = await fetch('/api/maintenance')
+        if (response.ok) {
+          const data = await response.json()
+          const maintenance = data.maintenance || data.data || []
+          
+          // Count pending or scheduled maintenance
+          const maintenanceDue = maintenance.filter(item => 
+            item.status === 'pending' || item.status === 'scheduled'
+          ).length
+          
+          stats.value.maintenanceDue = maintenanceDue
+        }
+      } catch (error) {
+        console.error('Error loading maintenance stats:', error)
+        // If maintenance API doesn't exist, keep default value
+        stats.value.maintenanceDue = 0
       }
     }
 
@@ -160,6 +283,7 @@ export default {
       stats,
       recentBookings,
       vehicleStatus,
+      loading,
       quickAction,
       navigateToBookings,
       navigateToVehicles
@@ -167,3 +291,37 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+/* Loading and Empty States */
+.loading-state, .empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.loading-state i, .empty-state i {
+  font-size: 36px;
+  margin-bottom: 12px;
+  color: #3498db;
+}
+
+.empty-state i {
+  color: #95a5a6;
+}
+
+.loading-state p, .empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Spinner animation */
+.fa-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+</style>

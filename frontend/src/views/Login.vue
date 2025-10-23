@@ -89,6 +89,9 @@
         <a href="#" @click.prevent="forgotPassword" class="forgot-link">
           Forgot your password?
         </a>
+        <div class="signup-link-wrapper">
+          <p>Don't have an account? <router-link to="/signup" class="signup-link">Sign Up</router-link></p>
+        </div>
       </div>
     </div>
 
@@ -487,6 +490,30 @@ export default {
 }
 
 .forgot-link:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
+.signup-link-wrapper {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.signup-link-wrapper p {
+  margin: 0;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.signup-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.signup-link:hover {
   color: #764ba2;
   text-decoration: underline;
 }

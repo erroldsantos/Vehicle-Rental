@@ -369,6 +369,83 @@ class UsersController extends Controller {
     }
     
     /**
+     * Register a new user (customer only)
+     * POST /api/users/register
+     */
+    public function register() {
+        $this->api->require_method('POST');
+        
+        try {
+            $input = $this->api->get_input();
+            
+            // Validate required fields
+            $required = ['first_name', 'last_name', 'email', 'password'];
+            foreach ($required as $field) {
+                if (empty($input[$field])) {
+                    $this->api->respond_error("Field '$field' is required", 400);
+                    return;
+                }
+            }
+            
+            // Validate email format
+            if (!filter_var($input['email'], FILTER_VALIDATE_EMAIL)) {
+                $this->api->respond_error('Invalid email format', 400);
+                return;
+            }
+            
+            // Validate password length
+            if (strlen($input['password']) < 6) {
+                $this->api->respond_error('Password must be at least 6 characters long', 400);
+                return;
+            }
+            
+            // Check if email already exists
+            $stmt = $this->pdo->prepare("SELECT id FROM users WHERE email = ? AND deleted_at IS NULL");
+            $stmt->execute([$input['email']]);
+            if ($stmt->fetch()) {
+                $this->api->respond_error('Email already exists', 409);
+                return;
+            }
+            
+            // Hash password
+            $hashedPassword = password_hash($input['password'], PASSWORD_DEFAULT);
+            
+            // Insert new user - always as 'user' role for registration
+            $stmt = $this->pdo->prepare("
+                INSERT INTO users (first_name, last_name, email, phone, address, password, role, status) 
+                VALUES (?, ?, ?, ?, ?, ?, 'user', 'active')
+            ");
+            
+            $stmt->execute([
+                $input['first_name'],
+                $input['last_name'],
+                $input['email'],
+                $input['phone'] ?? null,
+                $input['address'] ?? null,
+                $hashedPassword
+            ]);
+            
+            $userId = $this->pdo->lastInsertId();
+            
+            // Get the created user (without password)
+            $stmt = $this->pdo->prepare("
+                SELECT id, first_name, last_name, email, phone, address, role, status, created_at 
+                FROM users WHERE id = ?
+            ");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch();
+            
+            $this->api->respond([
+                'message' => 'User registered successfully',
+                'user' => $user
+            ], 201);
+            
+        } catch (Exception $e) {
+            $this->api->respond_error($e->getMessage(), 500);
+        }
+    }
+    
+    /**
      * Get user statistics
      */
     private function getUserStats() {

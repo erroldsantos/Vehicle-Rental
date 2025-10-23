@@ -79,6 +79,7 @@ $router->group('/api', function() use ($router) {
     $router->put('/users/{id}', 'UsersController::update');
     $router->delete('/users/{id}', 'UsersController::delete');
     $router->post('/users/login', 'UsersController::login');
+    $router->post('/users/register', 'UsersController::register');
     
     // Booking Management API endpoints
     $router->get('/bookings', 'BookingsController::index');
