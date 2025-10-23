@@ -2,15 +2,24 @@
   <div id="app">
     <!-- Admin Layout (with sidebar and header) -->
     <template v-if="showAdminLayout">
+      <!-- Mobile Overlay -->
+      <div 
+        v-if="sidebarMobileOpen" 
+        class="mobile-overlay" 
+        @click="sidebarMobileOpen = false"
+      ></div>
+      
       <!-- Sidebar -->
       <Sidebar 
         :current-page="currentRoute"
+        :collapsed="sidebarCollapsed"
+        :mobile-open="sidebarMobileOpen"
         @navigate="navigateTo"
       />
       
       <!-- Main Content -->
-      <div class="main-content">
-        <Header @toggle-sidebar="toggleSidebar" />
+      <div class="main-content" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+        <Header @toggle-sidebar="toggleSidebar" :sidebar-collapsed="sidebarCollapsed" />
         
         <main class="content">
           <AlertMessage 
@@ -166,5 +175,55 @@ export default {
 .user-layout {
   min-height: 100vh;
   background: #f8fafc;
+}
+
+.main-content {
+  margin-left: 280px;
+  transition: margin-left 0.3s ease;
+  min-height: 100vh;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Adjust main content when sidebar is collapsed */
+.main-content.sidebar-collapsed {
+  margin-left: 70px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+  }
+  
+  .main-content.sidebar-collapsed {
+    margin-left: 0;
+  }
+}
+
+.content {
+  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 64px;
+}
+
+.mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-overlay {
+    display: block;
+  }
 }
 </style>
