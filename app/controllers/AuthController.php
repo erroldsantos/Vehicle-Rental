@@ -85,39 +85,9 @@ class AuthController extends Controller {
                     }
                 }
             } catch (PDOException $e) {
-                // Log the error but continue to demo accounts
+                // Log the error and return database connection error
                 error_log("Database query error: " . $e->getMessage());
-            }
-            
-            // Fallback to demo accounts if database authentication fails
-            $demoAccounts = [
-                'admin@vehiclerental.com' => [
-                    'password' => 'admin123',
-                    'name' => 'Demo Admin',
-                    'id' => 999,
-                    'role' => 'admin'
-                ]
-            ];
-            
-            if (isset($demoAccounts[$email]) && $demoAccounts[$email]['password'] === $password) {
-                $account = $demoAccounts[$email];
-                
-                $token = base64_encode($email . ':' . time() . ':' . rand(1000, 9999));
-                
-                $response = [
-                    'success' => true,
-                    'message' => 'Login successful (Demo Account)',
-                    'token' => $token,
-                    'user' => [
-                        'id' => $account['id'],
-                        'email' => $email,
-                        'name' => $account['name'],
-                        'role' => $account['role'],
-                        'permissions' => $account['role'] === 'admin' ? ['all'] : ['read']
-                    ]
-                ];
-                
-                $this->api->respond($response);
+                $this->api->respond_error('Database connection failed. Please contact support.', 500);
                 return;
             }
             

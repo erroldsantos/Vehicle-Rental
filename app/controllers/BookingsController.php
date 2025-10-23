@@ -40,7 +40,7 @@ class BookingsController extends Controller {
             $query = "SELECT b.id, b.booking_reference, b.start_date, b.end_date, 
                              b.total_amount, b.status, b.notes, b.created_at, b.user_id, b.vehicle_id,
                              u.first_name, u.last_name, u.email,
-                             v.brand, v.model, v.plate_number, v.daily_rate
+                             v.brand, v.model, v.plate_number, v.daily_rate, v.image as vehicle_image
                       FROM bookings b
                       LEFT JOIN users u ON b.user_id = u.id
                       LEFT JOIN vehicles v ON b.vehicle_id = v.id

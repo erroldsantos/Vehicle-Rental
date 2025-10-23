@@ -90,6 +90,14 @@ $router->group('/api', function() use ($router) {
     $router->put('/bookings/{id}/cancel', 'BookingsController::cancel');
     $router->delete('/bookings/{id}', 'BookingsController::delete');
     
+    // Payment Management API endpoints
+    $router->get('/payments', 'PaymentController::index');
+    $router->get('/payments/stats', 'PaymentController::stats');
+    $router->get('/payments/{id}', 'PaymentController::show');
+    $router->post('/payments', 'PaymentController::create');
+    $router->put('/payments/{id}', 'PaymentController::update');
+    $router->delete('/payments/{id}', 'PaymentController::delete');
+    
     // Authentication API endpoints
     $router->post('/auth/login', 'AuthController::login');
     $router->post('/auth/logout', 'AuthController::logout');

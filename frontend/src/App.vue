@@ -1,7 +1,7 @@
 <template>
   <div id="app">
-    <!-- Authenticated Layout -->
-    <template v-if="isAuthenticated && currentRoute !== 'login'">
+    <!-- Admin Layout (with sidebar and header) -->
+    <template v-if="showAdminLayout">
       <!-- Sidebar -->
       <Sidebar 
         :current-page="currentRoute"
@@ -21,6 +21,19 @@
           
           <router-view />
         </main>
+      </div>
+    </template>
+    
+    <!-- User Dashboard Layout (clean, no sidebar/header) -->
+    <template v-else-if="showUserDashboard">
+      <div class="user-layout">
+        <AlertMessage 
+          v-if="alert.message" 
+          :message="alert.message" 
+          :type="alert.type"
+        />
+        
+        <router-view />
       </div>
     </template>
     
@@ -58,6 +71,32 @@ export default {
     
     const currentRoute = computed(() => route.name)
     const apiConnected = computed(() => apiStore.connected)
+    
+    // Get user role
+    const userRole = computed(() => {
+      const userInfo = localStorage.getItem('user_info')
+      if (userInfo) {
+        const user = JSON.parse(userInfo)
+        return user.role || 'user'
+      }
+      return 'user'
+    })
+    
+    // Check if current route should show admin layout
+    const isAdminRoute = computed(() => {
+      const adminRoutes = ['dashboard', 'users', 'vehicles', 'bookings', 'maintenance', 'payments']
+      return adminRoutes.includes(currentRoute.value)
+    })
+    
+    // Check if user should see admin layout
+    const showAdminLayout = computed(() => {
+      return isAuthenticated.value && userRole.value === 'admin' && isAdminRoute.value
+    })
+    
+    // Check if user should see user dashboard (no sidebar/header)
+    const showUserDashboard = computed(() => {
+      return isAuthenticated.value && currentRoute.value === 'user-dashboard'
+    })
     
     // Watch for authentication changes
     const checkAuth = () => {
@@ -112,6 +151,9 @@ export default {
       currentRoute,
       apiConnected,
       isAuthenticated,
+      userRole,
+      showAdminLayout,
+      showUserDashboard,
       toggleSidebar,
       navigateTo,
       checkAuth
@@ -119,3 +161,10 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.user-layout {
+  min-height: 100vh;
+  background: #f8fafc;
+}
+</style>

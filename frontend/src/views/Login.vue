@@ -6,7 +6,7 @@
           <i class="fas fa-car"></i>
           <h1>Vehicle Rental</h1>
         </div>
-        <p class="subtitle">Sign in to your admin panel</p>
+        <p class="subtitle">Sign in to your account</p>
       </div>
 
       <form @submit.prevent="handleLogin" class="login-form">
@@ -164,8 +164,8 @@ export default {
       errorMessage.value = ''
 
       try {
-        // Simulate API call to your LavaLust backend
-        const response = await fetch('http://localhost/Vehicle-Rental/api/auth/login', {
+        // API call to your LavaLust backend (using Vite proxy)
+        const response = await fetch('/api/auth/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -197,19 +197,7 @@ export default {
         }
       } catch (error) {
         console.error('Login error:', error)
-        // For development - allow demo login
-        if (form.email === 'admin@vehiclerental.com' && form.password === 'admin123') {
-          localStorage.setItem('auth_token', 'demo_token')
-          localStorage.setItem('user_info', JSON.stringify({
-            id: 1,
-            name: 'Admin User',
-            email: 'admin@vehiclerental.com',
-            role: 'admin'
-          }))
-          window.location.href = '/'
-        } else {
-          errorMessage.value = 'Connection error. Please try again later.'
-        }
+        errorMessage.value = 'Connection error. Please check if the server is running and try again.'
       } finally {
         loading.value = false
       }
