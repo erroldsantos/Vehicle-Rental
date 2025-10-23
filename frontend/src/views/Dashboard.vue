@@ -324,4 +324,54 @@ export default {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* Status Badge Styles - Override global styles */
+.simple-table .status-badge {
+  display: inline-block !important;
+  padding: 3px 8px !important;
+  border-radius: 10px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  text-transform: capitalize !important;
+  white-space: nowrap !important;
+  width: auto !important;
+  max-width: fit-content !important;
+  margin: 0 !important;
+}
+
+/* Status Colors */
+.status-badge.confirmed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.cancelled {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.status-badge.completed {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-badge.available {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.rented {
+  background: #fbbf24;
+  color: #92400e;
+}
+
+.status-badge.maintenance {
+  background: #fed7aa;
+  color: #c2410c;
+}
 </style>

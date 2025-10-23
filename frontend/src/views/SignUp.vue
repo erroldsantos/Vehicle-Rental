@@ -12,40 +12,42 @@
 
       <!-- Sign Up Form -->
       <form @submit.prevent="handleSignUp" class="signup-form">
-        <!-- First Name -->
-        <div class="form-group">
-          <label for="firstName">First Name</label>
-          <div class="input-wrapper">
-            <i class="fas fa-user"></i>
-            <input
-              id="firstName"
-              v-model="form.firstName"
-              type="text"
-              placeholder="Enter your first name"
-              required
-              :disabled="loading"
-              class="form-input"
-            />
+        <div class="form-row">
+          <!-- First Name -->
+          <div class="form-group">
+            <label for="firstName">First Name</label>
+            <div class="input-wrapper">
+              <i class="fas fa-user"></i>
+              <input
+                id="firstName"
+                v-model="form.firstName"
+                type="text"
+                placeholder="Enter your first name"
+                required
+                :disabled="loading"
+                class="form-input"
+              />
+            </div>
+            <span v-if="errors.firstName" class="error-text">{{ errors.firstName }}</span>
           </div>
-          <span v-if="errors.firstName" class="error-text">{{ errors.firstName }}</span>
-        </div>
 
-        <!-- Last Name -->
-        <div class="form-group">
-          <label for="lastName">Last Name</label>
-          <div class="input-wrapper">
-            <i class="fas fa-user"></i>
-            <input
-              id="lastName"
-              v-model="form.lastName"
-              type="text"
-              placeholder="Enter your last name"
-              required
-              :disabled="loading"
-              class="form-input"
-            />
+          <!-- Last Name -->
+          <div class="form-group">
+            <label for="lastName">Last Name</label>
+            <div class="input-wrapper">
+              <i class="fas fa-user"></i>
+              <input
+                id="lastName"
+                v-model="form.lastName"
+                type="text"
+                placeholder="Enter your last name"
+                required
+                :disabled="loading"
+                class="form-input"
+              />
+            </div>
+            <span v-if="errors.lastName" class="error-text">{{ errors.lastName }}</span>
           </div>
-          <span v-if="errors.lastName" class="error-text">{{ errors.lastName }}</span>
         </div>
 
         <!-- Email -->
@@ -66,90 +68,94 @@
           <span v-if="errors.email" class="error-text">{{ errors.email }}</span>
         </div>
 
-        <!-- Phone -->
-        <div class="form-group">
-          <label for="phone">Phone Number</label>
-          <div class="input-wrapper">
-            <i class="fas fa-phone"></i>
-            <input
-              id="phone"
-              v-model="form.phone"
-              type="tel"
-              placeholder="Enter your phone number"
-              :disabled="loading"
-              class="form-input"
-            />
+        <div class="form-row">
+          <!-- Phone -->
+          <div class="form-group">
+            <label for="phone">Phone Number</label>
+            <div class="input-wrapper">
+              <i class="fas fa-phone"></i>
+              <input
+                id="phone"
+                v-model="form.phone"
+                type="tel"
+                placeholder="Enter your phone number"
+                :disabled="loading"
+                class="form-input"
+              />
+            </div>
+            <span v-if="errors.phone" class="error-text">{{ errors.phone }}</span>
           </div>
-          <span v-if="errors.phone" class="error-text">{{ errors.phone }}</span>
+
+          <!-- Address -->
+          <div class="form-group">
+            <label for="address">Address</label>
+            <div class="input-wrapper">
+              <i class="fas fa-map-marker-alt"></i>
+              <input
+                id="address"
+                v-model="form.address"
+                type="text"
+                placeholder="Enter your address"
+                :disabled="loading"
+                class="form-input"
+              />
+            </div>
+            <span v-if="errors.address" class="error-text">{{ errors.address }}</span>
+          </div>
         </div>
 
-        <!-- Address -->
-        <div class="form-group">
-          <label for="address">Address</label>
-          <div class="input-wrapper">
-            <i class="fas fa-map-marker-alt"></i>
-            <input
-              id="address"
-              v-model="form.address"
-              type="text"
-              placeholder="Enter your address"
-              :disabled="loading"
-              class="form-input"
-            />
+        <div class="form-row">
+          <!-- Password -->
+          <div class="form-group">
+            <label for="password">Password</label>
+            <div class="input-wrapper">
+              <i class="fas fa-lock"></i>
+              <input
+                id="password"
+                v-model="form.password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="Create a password"
+                required
+                :disabled="loading"
+                class="form-input"
+              />
+              <button
+                type="button"
+                @click="togglePassword"
+                class="password-toggle"
+                :disabled="loading"
+              >
+                <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+              </button>
+            </div>
+            <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
           </div>
-          <span v-if="errors.address" class="error-text">{{ errors.address }}</span>
-        </div>
 
-        <!-- Password -->
-        <div class="form-group">
-          <label for="password">Password</label>
-          <div class="input-wrapper">
-            <i class="fas fa-lock"></i>
-            <input
-              id="password"
-              v-model="form.password"
-              :type="showPassword ? 'text' : 'password'"
-              placeholder="Create a password"
-              required
-              :disabled="loading"
-              class="form-input"
-            />
-            <button
-              type="button"
-              @click="togglePassword"
-              class="password-toggle"
-              :disabled="loading"
-            >
-              <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-            </button>
+          <!-- Confirm Password -->
+          <div class="form-group">
+            <label for="confirmPassword">Confirm Password</label>
+            <div class="input-wrapper">
+              <i class="fas fa-lock"></i>
+              <input
+                id="confirmPassword"
+                v-model="form.confirmPassword"
+                :type="showConfirmPassword ? 'text' : 'password'"
+                placeholder="Confirm your password"
+                required
+                :disabled="loading"
+                class="form-input"
+              />
+              <button
+                type="button"
+                @click="toggleConfirmPassword"
+                class="password-toggle"
+                :disabled="loading"
+              >
+                <i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+              </button>
+            </div>
+            <span v-if="errors.confirmPassword" class="error-text">{{ errors.confirmPassword }}</span>
           </div>
-          <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
-        </div>
-
-        <!-- Confirm Password -->
-        <div class="form-group">
-          <label for="confirmPassword">Confirm Password</label>
-          <div class="input-wrapper">
-            <i class="fas fa-lock"></i>
-            <input
-              id="confirmPassword"
-              v-model="form.confirmPassword"
-              :type="showConfirmPassword ? 'text' : 'password'"
-              placeholder="Confirm your password"
-              required
-              :disabled="loading"
-              class="form-input"
-            />
-            <button
-              type="button"
-              @click="toggleConfirmPassword"
-              class="password-toggle"
-              :disabled="loading"
-            >
-              <i :class="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-            </button>
-          </div>
-          <span v-if="errors.confirmPassword" class="error-text">{{ errors.confirmPassword }}</span>
         </div>
 
         <!-- Terms and Conditions -->
@@ -404,11 +410,11 @@ export default {
 
 .signup-card {
   background: white;
-  padding: 40px;
+  padding: 32px;
   border-radius: 20px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
   animation: slideUp 0.6s ease-out;
 }
 
@@ -425,7 +431,7 @@ export default {
 
 .signup-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .logo {
@@ -457,13 +463,19 @@ export default {
 .signup-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .form-group label {
@@ -488,10 +500,10 @@ export default {
 
 .form-input {
   width: 100%;
-  padding: 16px 50px 16px 50px;
+  padding: 12px 45px 12px 45px;
   border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  font-size: 1rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
   transition: all 0.3s ease;
   background: #f9fafb;
 }
@@ -671,6 +683,17 @@ export default {
 }
 
 /* Responsive Design */
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .signup-card {
+    max-width: 400px;
+  }
+}
+
 @media (max-width: 480px) {
   .signup-card {
     padding: 24px;
@@ -682,7 +705,7 @@ export default {
   }
   
   .form-input {
-    padding: 14px 45px 14px 45px;
+    padding: 12px 40px 12px 40px;
   }
 }
 </style>
