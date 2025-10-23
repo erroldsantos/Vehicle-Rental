@@ -55,13 +55,6 @@ $router->group('/api', function() use ($router) {
     // Configuration endpoint
     $router->get('/config', 'ApiController::config');
     
-    // RESTful API endpoints for items
-    $router->get('/items', 'ApiController::index');
-    $router->get('/items/{id}', 'ApiController::show');
-    $router->post('/items', 'ApiController::create');
-    $router->put('/items/{id}', 'ApiController::update');
-    $router->delete('/items/{id}', 'ApiController::delete');
-    
     // Vehicle Management API endpoints
     $router->get('/vehicles', 'VehiclesController::index');
     $router->get('/vehicles/{id}', 'VehiclesController::show');
@@ -96,6 +89,12 @@ $router->group('/api', function() use ($router) {
     $router->put('/bookings/{id}', 'BookingsController::update');
     $router->put('/bookings/{id}/cancel', 'BookingsController::cancel');
     $router->delete('/bookings/{id}', 'BookingsController::delete');
+    
+    // Authentication API endpoints
+    $router->post('/auth/login', 'AuthController::login');
+    $router->post('/auth/logout', 'AuthController::logout');
+    $router->get('/auth/me', 'AuthController::me');
+    $router->post('/auth/forgot-password', 'AuthController::forgotPassword');
     
     // Admin Dashboard API endpoints
     $router->get('/admin/stats', 'AdminController::stats');

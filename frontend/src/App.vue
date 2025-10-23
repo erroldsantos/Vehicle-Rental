@@ -1,25 +1,33 @@
 <template>
   <div id="app">
-    <!-- Sidebar -->
-    <Sidebar 
-      :current-page="currentRoute"
-      @navigate="navigateTo"
-    />
-    
-    <!-- Main Content -->
-    <div class="main-content">
-      <Header />
+    <!-- Authenticated Layout -->
+    <template v-if="isAuthenticated && currentRoute !== 'login'">
+      <!-- Sidebar -->
+      <Sidebar 
+        :current-page="currentRoute"
+        @navigate="navigateTo"
+      />
       
-      <main class="content">
-        <AlertMessage 
-          v-if="alert.message" 
-          :message="alert.message" 
-          :type="alert.type"
-        />
+      <!-- Main Content -->
+      <div class="main-content">
+        <Header @toggle-sidebar="toggleSidebar" />
         
-        <router-view />
-      </main>
-    </div>
+        <main class="content">
+          <AlertMessage 
+            v-if="alert.message" 
+            :message="alert.message" 
+            :type="alert.type"
+          />
+          
+          <router-view />
+        </main>
+      </div>
+    </template>
+    
+    <!-- Guest Layout (Login) -->
+    <template v-else>
+      <router-view />
+    </template>
   </div>
 </template>
 
@@ -46,9 +54,23 @@ export default {
     const sidebarCollapsed = ref(false)
     const sidebarMobileOpen = ref(false)
     const alert = ref({ message: '', type: 'success' })
+    const isAuthenticated = ref(localStorage.getItem('auth_token') !== null)
     
     const currentRoute = computed(() => route.name)
     const apiConnected = computed(() => apiStore.connected)
+    
+    // Watch for authentication changes
+    const checkAuth = () => {
+      isAuthenticated.value = localStorage.getItem('auth_token') !== null
+    }
+    
+    // Listen for storage changes (useful for logout from other tabs)
+    window.addEventListener('storage', checkAuth)
+    
+    // Also check auth when route changes
+    router.beforeEach(() => {
+      checkAuth()
+    })
     
     const toggleSidebar = () => {
       if (window.innerWidth <= 768) {
@@ -64,6 +86,9 @@ export default {
     }
     
     onMounted(async () => {
+      // Check authentication state on mount
+      checkAuth()
+      
       await apiStore.checkConnection()
       
       if (apiStore.connected) {
@@ -86,8 +111,10 @@ export default {
       alert,
       currentRoute,
       apiConnected,
+      isAuthenticated,
       toggleSidebar,
-      navigateTo
+      navigateTo,
+      checkAuth
     }
   }
 }

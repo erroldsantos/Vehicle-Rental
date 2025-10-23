@@ -10,101 +10,37 @@ class ApiController extends Controller {
     }
     
     /**
-     * Get all items - Example endpoint for Vue frontend
-     */
-    public function index() {
-        $this->api->require_method('GET');
-        
-        // Sample data - replace with your database queries
-        $items = [
-            ['id' => 1, 'name' => 'Item 1', 'description' => 'First item'],
-            ['id' => 2, 'name' => 'Item 2', 'description' => 'Second item'],
-            ['id' => 3, 'name' => 'Item 3', 'description' => 'Third item']
-        ];
-        
-        $this->api->respond($items);
-    }
-    
-    /**
-     * Get single item by ID
-     */
-    public function show($id) {
-        $this->api->require_method('GET');
-        
-        // Sample data - replace with database query
-        $item = ['id' => $id, 'name' => 'Item ' . $id, 'description' => 'Description for item ' . $id];
-        
-        if (!$item) {
-            $this->api->respond_error('Item not found', 404);
-            return;
-        }
-        
-        $this->api->respond($item);
-    }
-    
-    /**
-     * Create new item
-     */
-    public function create() {
-        $this->api->require_method('POST');
-        
-        $input = $this->api->body();
-        
-        // Validate input
-        if (empty($input['name'])) {
-            $this->api->respond_error('Name is required', 400);
-            return;
-        }
-        
-        // Sample creation logic - replace with database insertion
-        $new_item = [
-            'id' => rand(100, 999),
-            'name' => $input['name'],
-            'description' => $input['description'] ?? ''
-        ];
-        
-        $this->api->respond($new_item, 201);
-    }
-    
-    /**
-     * Update existing item
-     */
-    public function update($id) {
-        $this->api->require_method('PUT');
-        
-        $input = $this->api->body();
-        
-        // Sample update logic - replace with database update
-        $updated_item = [
-            'id' => $id,
-            'name' => $input['name'] ?? 'Updated Item',
-            'description' => $input['description'] ?? 'Updated description'
-        ];
-        
-        $this->api->respond($updated_item);
-    }
-    
-    /**
-     * Delete item
-     */
-    public function delete($id) {
-        $this->api->require_method('DELETE');
-        
-        // Sample deletion logic - replace with database deletion
-        $this->api->respond(['message' => 'Item ' . $id . ' deleted successfully']);
-    }
-    
-    /**
      * Health check endpoint for Vue frontend
      */
     public function health() {
         $this->api->require_method('GET');
         
-        $this->api->respond([
-            'status' => 'ok',
-            'message' => 'LavaLust API is running',
-            'timestamp' => date('Y-m-d H:i:s')
-        ]);
+        try {
+            // Test database connection
+            $pdo = new PDO('mysql:host=localhost;dbname=vehicle_rental', 'root', '');
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            // Test basic query
+            $stmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL");
+            $userCount = $stmt->fetch()['count'];
+            
+            $this->api->respond([
+                'status' => 'ok',
+                'message' => 'LavaLust API is running',
+                'database' => 'connected',
+                'users_count' => $userCount,
+                'timestamp' => date('Y-m-d H:i:s')
+            ]);
+            
+        } catch (PDOException $e) {
+            $this->api->respond([
+                'status' => 'warning',
+                'message' => 'API running but database connection failed',
+                'database' => 'disconnected',
+                'error' => $e->getMessage(),
+                'timestamp' => date('Y-m-d H:i:s')
+            ], 200);
+        }
     }
     
     /**
@@ -114,9 +50,17 @@ class ApiController extends Controller {
         $this->api->require_method('GET');
         
         $config = [
-            'app_name' => 'LavaLust Vue App',
+            'app_name' => 'Vehicle Rental Management System',
             'version' => '1.0.0',
-            'timezone' => date_default_timezone_get()
+            'timezone' => date_default_timezone_get(),
+            'api_base_url' => '/Vehicle-Rental/api',
+            'features' => [
+                'vehicle_management' => true,
+                'booking_management' => true,
+                'user_management' => true,
+                'maintenance_tracking' => true,
+                'payment_processing' => true
+            ]
         ];
         
         $this->api->respond($config);

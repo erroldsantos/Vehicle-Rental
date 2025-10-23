@@ -1,4 +1,5 @@
-<template>
+cd frontend
+npm run dev<template>
   <header class="header">
     <div class="header-left">
       <button class="menu-toggle" @click="toggleSidebar">
@@ -8,12 +9,6 @@
     </div>
     
     <div class="header-right">
-      <!-- API Connection Status -->
-      <div class="api-status" :class="{ connected: apiConnected, disconnected: !apiConnected }">
-        <div class="status-indicator"></div>
-        <span class="status-text">{{ apiConnected ? 'API Connected' : 'API Disconnected' }}</span>
-      </div>
-
       <div class="notifications">
         <i class="fas fa-bell icon"></i>
         <span class="notification-badge" v-if="notificationCount > 0">{{ notificationCount }}</span>
@@ -45,18 +40,17 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 export default {
   name: 'Header',
   emits: ['toggle-sidebar'],
   setup(props, { emit }) {
     const route = useRoute()
+    const router = useRouter()
     const showUserMenu = ref(false)
     const notificationCount = ref(3)
-    const apiConnected = ref(false)
-    let connectionCheckInterval = null
     
     const pageTitle = computed(() => {
       const titles = {
@@ -91,60 +85,21 @@ export default {
     const logout = () => {
       showUserMenu.value = false
       if (confirm('Are you sure you want to logout?')) {
-        // Implement logout functionality
-        alert('Logout functionality to be implemented')
-      }
-    }
-
-    // Check API connection status
-    const checkApiConnection = async () => {
-      try {
-        // LavaLust API health endpoint
-        const response = await fetch('http://localhost:8000/api/health', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
+        // Clear authentication data
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('user_info')
         
-        if (response.ok) {
-          apiConnected.value = true
-        } else {
-          apiConnected.value = false
-        }
-      } catch (error) {
-        console.log('API connection check failed:', error.message)
-        apiConnected.value = false
+        // Redirect to login
+        router.push({ name: 'login' })
       }
     }
 
-    // Start periodic connection checks
-    const startConnectionMonitoring = () => {
-      checkApiConnection() // Check immediately
-      connectionCheckInterval = setInterval(checkApiConnection, 30000) // Check every 30 seconds
-    }
 
-    // Stop connection monitoring
-    const stopConnectionMonitoring = () => {
-      if (connectionCheckInterval) {
-        clearInterval(connectionCheckInterval)
-        connectionCheckInterval = null
-      }
-    }
-
-    onMounted(() => {
-      startConnectionMonitoring()
-    })
-
-    onBeforeUnmount(() => {
-      stopConnectionMonitoring()
-    })
     
     return {
       pageTitle,
       showUserMenu,
       notificationCount,
-      apiConnected,
       toggleSidebar,
       toggleUserMenu,
       viewProfile,
