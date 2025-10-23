@@ -316,12 +316,26 @@ export default {
 
 .form-input {
   width: 100%;
-  padding: 16px 16px 16px 50px;
+  padding: 16px 50px 16px 50px; /* Balanced padding for both icons */
   border: 2px solid #e5e7eb;
   border-radius: 12px;
   font-size: 1rem;
   transition: all 0.3s ease;
   background: #f9fafb;
+}
+
+/* Hide browser's default password toggle */
+.form-input[type="password"]::-ms-reveal,
+.form-input[type="password"]::-ms-clear {
+  display: none;
+}
+
+.form-input[type="password"]::-webkit-reveal {
+  display: none;
+}
+
+.form-input[type="password"]::-webkit-clear-button {
+  display: none;
 }
 
 .form-input:focus {
@@ -338,22 +352,38 @@ export default {
 
 .password-toggle {
   position: absolute;
-  right: 16px;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   color: #9ca3af;
   cursor: pointer;
-  padding: 8px;
+  padding: 6px;
   font-size: 1rem;
   transition: color 0.3s ease;
+  z-index: 2;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .password-toggle:hover:not(:disabled) {
   color: #667eea;
+  background-color: #f3f4f6;
 }
 
 .password-toggle:disabled {
   cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.password-toggle:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
 }
 
 .checkbox-wrapper {
