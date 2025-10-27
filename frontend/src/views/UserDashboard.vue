@@ -5,14 +5,12 @@
       <div class="header-content">
         <div class="logo">
           <i class="fas fa-car"></i>
-          <h1>Vehicle Rental</h1>
+          <span class="logo-text">Vehicle Rental</span>
         </div>
         
         <div class="user-info">
-          <div class="user-details">
-            <span class="user-name">{{ userName }}</span>
-            <span class="user-role">Customer</span>
-          </div>
+          <span class="user-name">{{ userName }}</span>
+          <span class="user-role">CUSTOMER</span>
           <div class="user-avatar">
             {{ userName.charAt(0).toUpperCase() }}
           </div>
@@ -412,52 +410,43 @@ export default {
 .logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .logo i {
-  font-size: 1.5rem;
+  font-size: 2rem;
   color: #667eea;
 }
 
-.logo h1 {
-  margin: 0;
+.logo-text {
   font-size: 1.5rem;
   font-weight: 600;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #667eea;
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 1rem;
-}
-
-.user-details {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
+  gap: 0.75rem;
 }
 
 .user-name {
   font-weight: 600;
   color: #2d3748;
+  font-size: 1rem;
 }
 
 .user-role {
-  font-size: 0.75rem;
-  color: #718096;
+  font-size: 0.65rem;
+  color: #a0aec0;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
+  font-weight: 500;
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
@@ -465,27 +454,22 @@ export default {
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 1.125rem;
+  font-size: 1.2rem;
 }
 
 .logout-btn {
-  background: #f7fafc;
+  background: transparent;
   border: none;
   padding: 0.5rem;
   border-radius: 8px;
-  color: #718096;
+  color: #a0aec0;
   cursor: pointer;
   transition: all 0.2s ease;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 1.2rem;
 }
 
 .logout-btn:hover {
-  background: #fed7d7;
-  color: #c53030;
+  color: #667eea;
 }
 
 /* Dashboard Content */
@@ -843,11 +827,12 @@ export default {
     padding: 1rem;
   }
 
-  .logo h1 {
+  .logo-text {
     display: none;
   }
 
-  .user-details {
+  .user-name,
+  .user-role {
     display: none;
   }
 

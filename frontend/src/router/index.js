@@ -3,6 +3,8 @@ import Login from '../views/Login.vue'
 import SignUp from '../views/SignUp.vue'
 import Dashboard from '../views/Dashboard.vue'
 import UserDashboard from '../views/UserDashboard.vue'
+import BrowseVehicles from '../views/BrowseVehicles.vue'
+import MyBookings from '../views/MyBookings.vue'
 import UserManagement from '../views/UserManagement.vue'
 import VehicleManagement from '../views/VehicleManagement.vue'
 import BookingManagement from '../views/BookingManagement.vue'
@@ -33,6 +35,18 @@ const routes = [
     name: 'user-dashboard',
     component: UserDashboard,
     meta: { title: 'User Dashboard', requiresAuth: true }
+  },
+  {
+    path: '/browse-vehicles',
+    name: 'browse-vehicles',
+    component: BrowseVehicles,
+    meta: { title: 'Browse Vehicles', requiresAuth: true }
+  },
+  {
+    path: '/my-bookings',
+    name: 'my-bookings',
+    component: MyBookings,
+    meta: { title: 'My Bookings', requiresAuth: true }
   },
   {
     path: '/users',
