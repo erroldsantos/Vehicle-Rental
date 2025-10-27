@@ -182,11 +182,13 @@
 <script>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useApiStore } from '@/stores/api'
 
 export default {
   name: 'UserDashboard',
   setup() {
     const router = useRouter()
+    const apiStore = useApiStore()
     const loading = ref(false)
     const stats = ref({
       totalBookings: 0,
@@ -246,34 +248,23 @@ export default {
         }
 
         // Fetch user's bookings to calculate stats
-        const bookingsResponse = await fetch(`/api/bookings?user_id=${userId}`)
-        if (bookingsResponse.ok) {
-          const bookingsData = await bookingsResponse.json()
-          const userBookings = bookingsData.bookings || bookingsData.data || []
-          
-          // Calculate stats from real data
-          const totalBookings = userBookings.length
-          const activeBookings = userBookings.filter(b => 
-            b.status === 'confirmed' || b.status === 'pending'
-          ).length
-          const totalSpent = userBookings
-            .filter(b => b.status === 'completed')
-            .reduce((sum, b) => sum + parseFloat(b.total_amount || 0), 0)
-          
-          stats.value = {
-            totalBookings,
-            activeBookings,
-            totalSpent: totalSpent.toFixed(2),
-            favoriteVehicles: Math.min(totalBookings, 5) // Approximate based on bookings
-          }
-        } else {
-          // Fallback to zeros if API fails
-          stats.value = {
-            totalBookings: 0,
-            activeBookings: 0,
-            totalSpent: '0.00',
-            favoriteVehicles: 0
-          }
+        const bookingsData = await apiStore.get(`/bookings?user_id=${userId}`)
+        const userBookings = bookingsData.bookings || bookingsData.data?.bookings || []
+        
+        // Calculate stats from real data
+        const totalBookings = userBookings.length
+        const activeBookings = userBookings.filter(b => 
+          b.status === 'confirmed' || b.status === 'pending'
+        ).length
+        const totalSpent = userBookings
+          .filter(b => b.status === 'completed')
+          .reduce((sum, b) => sum + parseFloat(b.total_amount || 0), 0)
+        
+        stats.value = {
+          totalBookings,
+          activeBookings,
+          totalSpent: totalSpent.toFixed(2),
+          favoriteVehicles: Math.min(totalBookings, 5) // Approximate based on bookings
         }
       } catch (error) {
         console.error('Error loading user stats:', error)
@@ -299,27 +290,20 @@ export default {
         }
 
         // Fetch user's recent bookings from API
-        const response = await fetch(`/api/bookings?user_id=${userId}&limit=5&sort=created_at&order=DESC`)
+        const data = await apiStore.get(`/bookings?user_id=${userId}&limit=5&sort=created_at&order=DESC`)
+        const bookings = data.bookings || data.data?.bookings || []
         
-        if (response.ok) {
-          const data = await response.json()
-          const bookings = data.bookings || data.data || []
-          
-          // Process bookings data
-          recentBookings.value = bookings.map(booking => ({
-            id: booking.id,
-            booking_reference: booking.booking_reference,
-            vehicle_name: `${booking.brand || ''} ${booking.model || ''}`.trim() || 'Unknown Vehicle',
-            vehicle_image: booking.vehicle_image ? `/images/vehicles/${booking.vehicle_image}` : null,
-            start_date: booking.start_date,
-            end_date: booking.end_date,
-            status: booking.status,
-            total_amount: parseFloat(booking.total_amount || 0).toFixed(2)
-          }))
-        } else {
-          console.error('Failed to fetch bookings:', response.status)
-          recentBookings.value = []
-        }
+        // Process bookings data
+        recentBookings.value = bookings.map(booking => ({
+          id: booking.id,
+          booking_reference: booking.booking_reference,
+          vehicle_name: `${booking.brand || ''} ${booking.model || ''}`.trim() || 'Unknown Vehicle',
+          vehicle_image: booking.vehicle_image ? `/images/vehicles/${booking.vehicle_image}` : null,
+          start_date: booking.start_date,
+          end_date: booking.end_date,
+          status: booking.status,
+          total_amount: parseFloat(booking.total_amount || 0).toFixed(2)
+        }))
       } catch (error) {
         console.error('Error loading recent bookings:', error)
         recentBookings.value = []
@@ -329,23 +313,18 @@ export default {
     const loadFeaturedVehicles = async () => {
       try {
         // Fetch from actual API
-        const response = await fetch('/api/vehicles')
-        const data = await response.json()
+        const data = await apiStore.get('/vehicles')
+        const vehicles = data.data?.vehicles || data.vehicles || []
         
-        if (response.ok && data.data) {
-          // Take first 4 available vehicles for featured section
-          featuredVehicles.value = data.data
-            .filter(vehicle => vehicle.status === 'available')
-            .slice(0, 4)
-            .map(vehicle => ({
-              ...vehicle,
-              // Construct image URL if image exists
-              imageUrl: vehicle.image ? `/images/vehicles/${vehicle.image}` : null
-            }))
-        } else {
-          console.error('Failed to fetch vehicles:', response.status)
-          featuredVehicles.value = []
-        }
+        // Take first 4 available vehicles for featured section
+        featuredVehicles.value = vehicles
+          .filter(vehicle => vehicle.status === 'available')
+          .slice(0, 4)
+          .map(vehicle => ({
+            ...vehicle,
+            // Construct image URL if image exists
+            imageUrl: vehicle.image ? `/images/vehicles/${vehicle.image}` : null
+          }))
       } catch (error) {
         console.error('Error loading featured vehicles:', error)
         featuredVehicles.value = []

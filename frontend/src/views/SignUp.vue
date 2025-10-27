@@ -213,11 +213,13 @@
 <script>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { useApiStore } from '@/stores/api'
 
 export default {
   name: 'SignUp',
   setup() {
     const router = useRouter()
+    const apiStore = useApiStore()
     
     const loading = ref(false)
     const showPassword = ref(false)
@@ -324,25 +326,17 @@ export default {
       successMessage.value = ''
 
       try {
-        const response = await fetch('/api/users/register', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            first_name: form.firstName,
-            last_name: form.lastName,
-            email: form.email,
-            phone: form.phone || null,
-            address: form.address || null,
-            password: form.password,
-            role: 'user' // Explicitly set as user role
-          })
+        const data = await apiStore.post('/users/register', {
+          first_name: form.firstName,
+          last_name: form.lastName,
+          email: form.email,
+          phone: form.phone || null,
+          address: form.address || null,
+          password: form.password,
+          role: 'user' // Explicitly set as user role
         })
 
-        const data = await response.json()
-
-        if (response.ok) {
+        if (data.success || data.user) {
           successMessage.value = 'Account created successfully! Redirecting to login...'
           
           // Clear form

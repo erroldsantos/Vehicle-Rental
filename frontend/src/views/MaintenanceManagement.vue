@@ -265,7 +265,8 @@ export default {
         const response = await apiStore.get('/maintenance')
         console.log('Maintenance API Response:', response)
         
-        maintenance.value = response.data || response || []
+        // Handle both {maintenance: [...]} and {data: {maintenance: [...]}} formats
+        maintenance.value = response.maintenance || response.data?.maintenance || response.data || []
         console.log('Loaded maintenance records:', maintenance.value)
       } catch (error) {
         console.error('Failed to load maintenance records:', error)

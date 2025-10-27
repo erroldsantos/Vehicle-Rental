@@ -1,23 +1,16 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-class AuthController extends Controller {
+require_once APP_DIR . 'controllers/ApiController.php';
+
+class AuthController extends ApiController {
     
-    private $pdo;
+    protected $pdo;
     
     public function __construct() {
         parent::__construct();
-        $this->call->library('api');
-        
-        // Initialize database connection
-        try {
-            $this->pdo = new PDO('mysql:host=localhost;dbname=vehicle_rental', 'root', '');
-            $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            $this->api->respond_error('Database connection failed: ' . $e->getMessage(), 500);
-            exit();
-        }
+        // Get PDO connection from Database helper
+        $this->pdo = $this->db->getConnection();
     }
     
     /**

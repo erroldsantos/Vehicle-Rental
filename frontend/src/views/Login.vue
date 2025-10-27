@@ -113,11 +113,13 @@
 <script>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { useApiStore } from '@/stores/api'
 
 export default {
   name: 'Login',
   setup() {
     const router = useRouter()
+    const apiStore = useApiStore()
     const loading = ref(false)
     const showPassword = ref(false)
     const errorMessage = ref('')
@@ -167,22 +169,14 @@ export default {
       errorMessage.value = ''
 
       try {
-        // API call to your LavaLust backend (using Vite proxy)
-        const response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            email: form.email,
-            password: form.password,
-            remember: form.remember
-          })
+        // API call to your LavaLust backend (using apiStore with Vite proxy)
+        const data = await apiStore.post('/auth/login', {
+          email: form.email,
+          password: form.password,
+          remember: form.remember
         })
 
-        const data = await response.json()
-
-        if (response.ok && data.success) {
+        if (data.success || data.token) {
           // Store authentication token
           if (data.token) {
             localStorage.setItem('auth_token', data.token)

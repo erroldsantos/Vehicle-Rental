@@ -13,7 +13,7 @@ class Database {
     
     private function __construct() {
         // Read database config
-        require APPPATH . 'config/database.php';
+        require APP_DIR . 'config/database.php';
         $db = $database['main'];
         
         $dsn = "{$db['driver']}:host={$db['hostname']};port={$db['port']};dbname={$db['database']};charset={$db['charset']}";

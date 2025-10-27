@@ -18,7 +18,7 @@ class ApiController extends Controller {
         $this->call->library('api');
         
         // Load Database helper
-        require_once APPPATH . 'helpers/Database.php';
+        require_once APP_DIR . 'helpers/Database.php';
         $this->db = Database::getInstance();
     }
     

@@ -208,14 +208,9 @@ export default {
 
     const loadPayments = async () => {
       try {
-        const response = await fetch('/api/payments')
-        if (response.ok) {
-          const data = await response.json()
-          payments.value = data.payments || []
-        } else {
-          console.error('Failed to fetch payments:', response.status)
-          payments.value = []
-        }
+        const response = await apiStore.get('/payments')
+        // Handle both {payments: [...]} and {data: {payments: [...]}} formats
+        payments.value = response.payments || response.data?.payments || []
       } catch (error) {
         console.error('Error loading payments:', error)
         payments.value = []
@@ -224,11 +219,8 @@ export default {
 
     const loadStats = async () => {
       try {
-        const response = await fetch('/api/payments/stats')
-        if (response.ok) {
-          const data = await response.json()
-          Object.assign(stats, data)
-        }
+        const response = await apiStore.get('/payments/stats')
+        Object.assign(stats, response.data || response)
       } catch (error) {
         console.error('Error loading payment stats:', error)
       }
@@ -236,23 +228,20 @@ export default {
 
     const loadAvailableBookings = async () => {
       try {
-        const response = await fetch('/api/bookings')
-        if (response.ok) {
-          const data = await response.json()
-          const bookings = data.bookings || data.data || []
+        const response = await apiStore.get('/bookings')
+        const bookings = response.bookings || response.data?.bookings || []
           
-          // Filter out cancelled bookings - only show pending, confirmed, or completed bookings
-          const activeBookings = bookings.filter(booking => {
-            const status = booking.status ? booking.status.toLowerCase() : ''
-            return status !== 'cancelled'
-          })
-          
-          availableBookings.value = activeBookings.map(booking => ({
-            id: booking.id,
-            booking_reference: booking.booking_reference,
-            customer_name: `${booking.first_name || ''} ${booking.last_name || ''}`.trim() || 'Unknown Customer'
-          }))
-        }
+        // Filter out cancelled bookings - only show pending, confirmed, or completed bookings
+        const activeBookings = bookings.filter(booking => {
+          const status = booking.status ? booking.status.toLowerCase() : ''
+          return status !== 'cancelled'
+        })
+        
+        availableBookings.value = activeBookings.map(booking => ({
+          id: booking.id,
+          booking_reference: booking.booking_reference,
+          customer_name: `${booking.first_name || ''} ${booking.last_name || ''}`.trim() || 'Unknown Customer'
+        }))
       } catch (error) {
         console.error('Error loading bookings:', error)
         availableBookings.value = []
@@ -271,21 +260,9 @@ export default {
     const createPayment = async () => {
       createLoading.value = true
       try {
-        const response = await fetch('/api/payments', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(newPayment)
-        })
-
-        if (response.ok) {
-          closeModal()
-          await refreshData()
-        } else {
-          const error = await response.json()
-          alert(`Error: ${error.message || 'Failed to create payment'}`)
-        }
+        await apiStore.post('/payments', newPayment)
+        closeModal()
+        await refreshData()
       } catch (error) {
         console.error('Error creating payment:', error)
         alert('Error creating payment. Please try again.')
@@ -298,19 +275,8 @@ export default {
       if (!confirm('Mark this payment as completed?')) return
 
       try {
-        const response = await fetch(`/api/payments/${payment.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ status: 'completed' })
-        })
-
-        if (response.ok) {
-          await refreshData()
-        } else {
-          alert('Failed to update payment status')
-        }
+        await apiStore.put(`/payments/${payment.id}`, { status: 'completed' })
+        await refreshData()
       } catch (error) {
         console.error('Error updating payment:', error)
         alert('Error updating payment. Please try again.')
@@ -321,15 +287,8 @@ export default {
       if (!confirm(`Delete payment for ${getCustomerName(payment)}?`)) return
 
       try {
-        const response = await fetch(`/api/payments/${payment.id}`, {
-          method: 'DELETE'
-        })
-
-        if (response.ok) {
-          await refreshData()
-        } else {
-          alert('Failed to delete payment')
-        }
+        await apiStore.delete(`/payments/${payment.id}`)
+        await refreshData()
       } catch (error) {
         console.error('Error deleting payment:', error)
         alert('Error deleting payment. Please try again.')

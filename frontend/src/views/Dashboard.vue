@@ -108,6 +108,7 @@
 <script>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useApiStore } from '@/stores/api'
 import StatsCard from '../components/StatsCard.vue'
 
 export default {
@@ -117,6 +118,7 @@ export default {
   },
   setup() {
     const router = useRouter()
+    const apiStore = useApiStore()
     
     const stats = ref({
       totalVehicles: 0,
@@ -170,12 +172,10 @@ export default {
 
     const loadVehicleStats = async () => {
       try {
-        const response = await fetch('/api/vehicles')
-        if (response.ok) {
-          const data = await response.json()
-          const vehicles = data.vehicles || data.data || []
-          stats.value.totalVehicles = vehicles.length
-        }
+        const data = await apiStore.get('/vehicles')
+        // Handle {data: {vehicles: [...]}} format
+        const vehicles = data.data?.vehicles || data.vehicles || []
+        stats.value.totalVehicles = vehicles.length
       } catch (error) {
         console.error('Error loading vehicle stats:', error)
       }
@@ -183,25 +183,23 @@ export default {
 
     const loadBookingStats = async () => {
       try {
-        const response = await fetch('/api/bookings')
-        if (response.ok) {
-          const data = await response.json()
-          const bookings = data.bookings || data.data || []
-          
-          // Count active bookings (confirmed, pending)
-          const activeBookings = bookings.filter(booking => 
-            booking.status === 'confirmed' || booking.status === 'pending'
-          ).length
-          
-          stats.value.activeBookings = activeBookings
-          
-          // Calculate total revenue from completed bookings
-          const totalRevenue = bookings
-            .filter(booking => booking.status === 'completed')
-            .reduce((sum, booking) => sum + parseFloat(booking.total_amount || 0), 0)
-          
-          stats.value.totalRevenue = totalRevenue.toFixed(2)
-        }
+        const data = await apiStore.get('/bookings')
+        // Handle both {bookings: [...]} and {data: {bookings: [...]}} formats
+        const bookings = data.bookings || data.data?.bookings || []
+        
+        // Count active bookings (confirmed, pending)
+        const activeBookings = bookings.filter(booking => 
+          booking.status === 'confirmed' || booking.status === 'pending'
+        ).length
+        
+        stats.value.activeBookings = activeBookings
+        
+        // Calculate total revenue from completed bookings
+        const totalRevenue = bookings
+          .filter(booking => booking.status === 'completed')
+          .reduce((sum, booking) => sum + parseFloat(booking.total_amount || 0), 0)
+        
+        stats.value.totalRevenue = totalRevenue.toFixed(2)
       } catch (error) {
         console.error('Error loading booking stats:', error)
       }
@@ -209,24 +207,21 @@ export default {
 
     const loadRecentBookings = async () => {
       try {
-        const response = await fetch('/api/bookings')
-        if (response.ok) {
-          const data = await response.json()
-          const bookings = data.bookings || data.data || []
-          
-          // Get the 3 most recent bookings
-          const recent = bookings
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-            .slice(0, 3)
-            .map(booking => ({
-              id: booking.id,
-              reference: booking.booking_reference,
-              vehicle: `${booking.brand || ''} ${booking.model || ''}`.trim() || 'Unknown Vehicle',
-              status: booking.status.charAt(0).toUpperCase() + booking.status.slice(1)
-            }))
-          
-          recentBookings.value = recent
-        }
+        const data = await apiStore.get('/bookings')
+        const bookings = data.bookings || data.data?.bookings || []
+        
+        // Get the 3 most recent bookings
+        const recent = bookings
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 3)
+          .map(booking => ({
+            id: booking.id,
+            reference: booking.booking_reference,
+            vehicle: `${booking.brand || ''} ${booking.model || ''}`.trim() || 'Unknown Vehicle',
+            status: booking.status.charAt(0).toUpperCase() + booking.status.slice(1)
+          }))
+        
+        recentBookings.value = recent
       } catch (error) {
         console.error('Error loading recent bookings:', error)
       }
@@ -234,21 +229,19 @@ export default {
 
     const loadVehicleStatus = async () => {
       try {
-        const response = await fetch('/api/vehicles')
-        if (response.ok) {
-          const data = await response.json()
-          const vehicles = data.vehicles || data.data || []
-          
-          // Map vehicles to status format
-          const vehicleStatusData = vehicles.slice(0, 3).map(vehicle => ({
-            id: vehicle.id,
-            name: `${vehicle.brand} ${vehicle.model}`,
-            plate: vehicle.plate_number,
-            status: vehicle.status ? vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1) : 'Available'
-          }))
-          
-          vehicleStatus.value = vehicleStatusData
-        }
+        const data = await apiStore.get('/vehicles')
+        // Handle {data: {vehicles: [...]}} format
+        const vehicles = data.data?.vehicles || data.vehicles || []
+        
+        // Map vehicles to status format
+        const vehicleStatusData = vehicles.slice(0, 3).map(vehicle => ({
+          id: vehicle.id,
+          name: `${vehicle.brand} ${vehicle.model}`,
+          plate: vehicle.plate_number,
+          status: vehicle.status ? vehicle.status.charAt(0).toUpperCase() + vehicle.status.slice(1) : 'Available'
+        }))
+        
+        vehicleStatus.value = vehicleStatusData
       } catch (error) {
         console.error('Error loading vehicle status:', error)
       }
@@ -256,18 +249,16 @@ export default {
 
     const loadMaintenanceStats = async () => {
       try {
-        const response = await fetch('/api/maintenance')
-        if (response.ok) {
-          const data = await response.json()
-          const maintenance = data.maintenance || data.data || []
-          
-          // Count pending or scheduled maintenance
-          const maintenanceDue = maintenance.filter(item => 
-            item.status === 'pending' || item.status === 'scheduled'
-          ).length
-          
-          stats.value.maintenanceDue = maintenanceDue
-        }
+        const data = await apiStore.get('/maintenance')
+        // Handle both {maintenance: [...]} and {data: {maintenance: [...]}} formats
+        const maintenance = data.maintenance || data.data?.maintenance || []
+        
+        // Count pending or scheduled maintenance
+        const maintenanceDue = maintenance.filter(item => 
+          item.status === 'pending' || item.status === 'scheduled'
+        ).length
+        
+        stats.value.maintenanceDue = maintenanceDue
       } catch (error) {
         console.error('Error loading maintenance stats:', error)
         // If maintenance API doesn't exist, keep default value

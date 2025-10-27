@@ -199,8 +199,8 @@ export default {
         const response = await apiStore.get('/vehicles')
         console.log('API Response:', response)
         
-        // Our API returns {data: [...]} format
-        vehicles.value = response.data || response || []
+        // Backend returns {data: {vehicles: [...], total: N}}
+        vehicles.value = response.data?.vehicles || []
         console.log('Loaded vehicles:', vehicles.value)
       } catch (error) {
         console.error('Failed to load vehicles:', error)

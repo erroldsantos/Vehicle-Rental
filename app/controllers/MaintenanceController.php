@@ -1,7 +1,7 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-require_once APPPATH . 'controllers/ApiController.php';
+require_once APP_DIR . 'controllers/ApiController.php';
 
 class MaintenanceController extends ApiController {
     

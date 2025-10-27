@@ -332,8 +332,9 @@ export default {
         const response = await apiStore.get(endpoint)
         console.log('Bookings response:', response)
         
-        bookings.value = response.bookings || response
-        stats.value = response.stats || {}
+        // Handle both {bookings: [...]} and {data: {bookings: [...]}} formats
+        bookings.value = response.bookings || response.data?.bookings || []
+        stats.value = response.stats || response.data?.stats || {}
         
       } catch (error) {
         console.error('Failed to load bookings:', error)
@@ -363,7 +364,8 @@ export default {
         
         const response = await apiStore.get(endpoint)
         console.log('Vehicles response:', response)
-        availableVehicles.value = response.vehicles || response.data || response
+        // Handle both {vehicles: [...]} and {data: {vehicles: [...]}} formats
+        availableVehicles.value = response.vehicles || response.data?.vehicles || []
       } catch (error) {
         console.error('Failed to load vehicles:', error)
       }

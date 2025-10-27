@@ -1,13 +1,11 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-class AdminController extends Controller {
+require_once APP_DIR . 'controllers/ApiController.php';
+
+class AdminController extends ApiController {
     
-    public function __construct() {
-        parent::__construct();
-        // Load API library for admin dashboard communication
-        $this->call->library('api');
-    }
+    // Constructor inherited from ApiController - has $this->db and $this->api
     
     /**
      * Dashboard statistics endpoint

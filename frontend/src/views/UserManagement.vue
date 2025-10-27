@@ -313,8 +313,9 @@ export default {
         const response = await apiStore.get(endpoint)
         console.log('Users response:', response)
         
-        users.value = response.users || response
-        stats.value = response.stats || {}
+        // Handle both {users: [...]} and {data: {users: [...]}} formats
+        users.value = response.users || response.data?.users || []
+        stats.value = response.stats || response.data?.stats || {}
         
       } catch (error) {
         console.error('Failed to load users:', error)

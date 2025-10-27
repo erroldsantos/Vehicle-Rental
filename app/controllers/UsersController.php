@@ -1,9 +1,17 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-require_once APPPATH . 'controllers/ApiController.php';
+require_once APP_DIR . 'controllers/ApiController.php';
 
 class UsersController extends ApiController {
+    
+    protected $pdo;
+    
+    public function __construct() {
+        parent::__construct();
+        // Get PDO connection from Database helper for backward compatibility
+        $this->pdo = $this->db->getConnection();
+    }
     
     /**
      * Get all users
