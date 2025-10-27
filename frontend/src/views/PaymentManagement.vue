@@ -19,8 +19,8 @@
         <div class="stat-icon">
           <i class="fas fa-dollar-sign"></i>
         </div>
-        <div class="stat-content">
-          <h3>${{ formatAmount(stats.total_revenue) }}</h3>
+        <div class="stat-card">
+          <h3>₱{{ formatAmount(stats.total_revenue) }}</h3>
           <p>Total Revenue</p>
         </div>
       </div>
@@ -94,7 +94,7 @@
           <span class="booking-ref">{{ payment.booking_reference || 'N/A' }}</span>
           <span>{{ getCustomerName(payment) }}</span>
           <span class="vehicle-info">{{ getVehicleInfo(payment) }}</span>
-          <span class="amount">${{ formatAmount(payment.amount) }}</span>
+          <span class="amount">₱{{ formatAmount(payment.amount) }}</span>
           <span class="payment-method">{{ payment.payment_method }}</span>
           <span>
             <span :class="['status-badge', getStatusClass(payment.status)]">
@@ -349,7 +349,7 @@ export default {
     }
 
     const viewPayment = (payment) => {
-      alert(`Payment Details:\n\nBooking: ${payment.booking_reference}\nCustomer: ${getCustomerName(payment)}\nAmount: $${formatAmount(payment.amount)}\nMethod: ${payment.payment_method}\nStatus: ${getStatusText(payment.status)}`)
+      alert(`Payment Details:\n\nBooking: ${payment.booking_reference}\nCustomer: ${getCustomerName(payment)}\nAmount: ₱${formatAmount(payment.amount)}\nMethod: ${payment.payment_method}\nStatus: ${getStatusText(payment.status)}`)
     }
 
     const exportReport = () => {

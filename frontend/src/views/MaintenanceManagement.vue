@@ -44,7 +44,7 @@
             <input v-model="newMaintenance.scheduled_date" class="form-input" type="date" required />
           </div>
           <div class="form-group">
-            <label>Estimated Cost ($)</label>
+            <label>Estimated Cost (₱)</label>
             <input v-model="newMaintenance.cost" class="form-input" type="number" step="0.01" placeholder="0.00" />
           </div>
           <div class="form-group">
@@ -93,7 +93,7 @@
             <input v-model="editingMaintenance.scheduled_date" class="form-input" type="date" required />
           </div>
           <div class="form-group">
-            <label>Cost ($)</label>
+            <label>Cost (₱)</label>
             <input v-model="editingMaintenance.cost" class="form-input" type="number" step="0.01" />
           </div>
           <div class="form-group">
@@ -148,8 +148,8 @@
         <div class="stat-icon">
           <i class="fas fa-dollar-sign"></i>
         </div>
-        <div class="stat-content">
-          <h3>${{ totalCost }}</h3>
+        <div class="stat-card">
+          <h3>₱{{ totalCost }}</h3>
           <p>Total Cost</p>
         </div>
       </div>
@@ -182,7 +182,7 @@
           <span class="vehicle-info">{{ record.vehicle_display }}</span>
           <span class="maintenance-desc">{{ record.description }}</span>
           <span class="schedule-date">{{ formatDate(record.scheduled_date) }}</span>
-          <span class="cost">${{ record.cost }}</span>
+          <span class="cost">₱{{ record.cost }}</span>
           <span>
             <span :class="['status-badge', record.status.toLowerCase()]">
               {{ formatStatus(record.status) }}

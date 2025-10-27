@@ -1,12 +1,11 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-class MaintenanceController extends Controller {
+require_once APPPATH . 'controllers/ApiController.php';
 
-    public function __construct() {
-        parent::__construct();
-        $this->call->library('api');
-    }
+class MaintenanceController extends ApiController {
+    
+    // Constructor now inherited from ApiController - has $this->db and $this->api
 
     // GET /maintenance - List all maintenance records with vehicle info
     public function index() {

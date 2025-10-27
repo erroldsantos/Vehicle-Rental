@@ -1,12 +1,80 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
+/**
+ * Base API Controller
+ * 
+ * All API controllers should extend this class.
+ * Provides database access and common helper methods.
+ */
 class ApiController extends Controller {
+    
+    protected $db;
     
     public function __construct() {
         parent::__construct();
-        // Load API library for Vue frontend communication
+        
+        // Load API library for all API controllers
         $this->call->library('api');
+        
+        // Load Database helper
+        require_once APPPATH . 'helpers/Database.php';
+        $this->db = Database::getInstance();
+    }
+    
+    /**
+     * Validate required fields in request body
+     * 
+     * @param array $data Request data
+     * @param array $required Required field names
+     * @return bool Returns true if valid, sends error response and returns false otherwise
+     */
+    protected function validateRequired($data, $required) {
+        foreach ($required as $field) {
+            if (empty($data[$field])) {
+                $this->api->respond_error("Field '$field' is required", 400);
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    /**
+     * Handle database errors consistently
+     * 
+     * @param Exception $e The exception
+     * @param string $message Custom error message
+     */
+    protected function handleDbError($e, $message = 'Database error occurred') {
+        // Log the actual error (in production, use proper logging)
+        error_log($e->getMessage());
+        
+        // Send user-friendly error
+        $this->api->respond_error($message, 500);
+    }
+    
+    /**
+     * Quick success response
+     * 
+     * @param mixed $data Data to return
+     * @param string $message Optional message
+     */
+    protected function success($data, $message = null) {
+        $response = ['data' => $data];
+        if ($message) {
+            $response['message'] = $message;
+        }
+        $this->api->respond($response);
+    }
+    
+    /**
+     * Quick error response
+     * 
+     * @param string $message Error message
+     * @param int $code HTTP status code
+     */
+    protected function error($message, $code = 400) {
+        $this->api->respond_error($message, $code);
     }
     
     /**
@@ -17,12 +85,8 @@ class ApiController extends Controller {
         
         try {
             // Test database connection
-            $pdo = new PDO('mysql:host=localhost;dbname=vehicle_rental', 'root', '');
-            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            
-            // Test basic query
-            $stmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL");
-            $userCount = $stmt->fetch()['count'];
+            $result = $this->db->queryOne("SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL");
+            $userCount = $result['count'];
             
             $this->api->respond([
                 'status' => 'ok',
@@ -32,7 +96,7 @@ class ApiController extends Controller {
                 'timestamp' => date('Y-m-d H:i:s')
             ]);
             
-        } catch (PDOException $e) {
+        } catch (Exception $e) {
             $this->api->respond([
                 'status' => 'warning',
                 'message' => 'API running but database connection failed',

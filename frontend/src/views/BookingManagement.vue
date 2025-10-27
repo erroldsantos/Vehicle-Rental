@@ -36,7 +36,7 @@
           <h3>Total Revenue</h3>
           <i class="fas fa-dollar-sign"></i>
         </div>
-        <div class="stat-number">${{ (stats.total_revenue || 0).toLocaleString() }}</div>
+        <div class="stat-number">₱{{ (stats.total_revenue || 0).toLocaleString() }}</div>
       </div>
     </div>
 
@@ -82,7 +82,7 @@
               <select v-model="newBooking.vehicle_id" class="form-control" required @change="checkAvailability">
                 <option value="">Select Vehicle</option>
                 <option v-for="vehicle in availableVehicles" :key="vehicle.id" :value="vehicle.id">
-                  {{ vehicle.brand }} {{ vehicle.model }} - {{ vehicle.plate_number }} (${{ vehicle.daily_rate }}/day)
+                  {{ vehicle.brand }} {{ vehicle.model }} - {{ vehicle.plate_number }} (₱{{ vehicle.daily_rate }}/day)
                 </option>
               </select>
             </div>
@@ -221,7 +221,7 @@
             <td>{{ booking.brand }} {{ booking.model }}<br><small>{{ booking.plate_number }}</small></td>
             <td>{{ formatDate(booking.start_date) }}</td>
             <td>{{ formatDate(booking.end_date) }}</td>
-            <td>${{ parseFloat(booking.total_amount).toFixed(2) }}</td>
+            <td>₱{{ parseFloat(booking.total_amount).toFixed(2) }}</td>
             <td>
               <span :class="['badge', 'status-' + booking.status]">
                 {{ formatStatus(booking.status) }}

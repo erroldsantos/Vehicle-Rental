@@ -40,8 +40,8 @@
             <input v-model="newVehicle.plate_number" class="form-input" type="text" required placeholder="e.g. ABC-1234" />
           </div>
           <div class="form-group">
-            <label>Daily Rate ($)</label>
-            <input v-model="newVehicle.daily_rate" class="form-input" type="number" step="0.01" required placeholder="50.00" />
+            <label>Daily Rate (₱)</label>
+            <input v-model="newVehicle.daily_rate" class="form-input" type="number" step="0.01" required placeholder="2000.00" />
           </div>
           <div class="form-group">
             <label>Status</label>
@@ -90,8 +90,8 @@
             <input v-model="editingVehicle.plate_number" class="form-input" type="text" required placeholder="e.g. ABC-1234" />
           </div>
           <div class="form-group">
-            <label>Daily Rate ($)</label>
-            <input v-model="editingVehicle.daily_rate" class="form-input" type="number" step="0.01" required placeholder="50.00" />
+            <label>Daily Rate (₱)</label>
+            <input v-model="editingVehicle.daily_rate" class="form-input" type="number" step="0.01" required placeholder="2000.00" />
           </div>
           <div class="form-group">
             <label>Status</label>
@@ -140,7 +140,7 @@
           <span class="vehicle-model">{{ getVehicleDisplay(vehicle) }}</span>
           <span class="plate-number">{{ vehicle.plate_number }}</span>
           <span class="vehicle-year">{{ vehicle.year }}</span>
-          <span class="rate">${{ vehicle.daily_rate }}</span>
+          <span class="rate">₱{{ vehicle.daily_rate }}</span>
           <span>
             <span :class="['status-badge', vehicle.status.toLowerCase()]">
               {{ formatStatus(vehicle.status) }}
@@ -206,9 +206,9 @@ export default {
         console.error('Failed to load vehicles:', error)
         // Keep existing mock data as fallback
         vehicles.value = [
-          { id: 1, brand: 'Toyota', model: 'Camry', year: 2022, plate_number: 'ABC-1234', daily_rate: 50.00, status: 'available' },
-          { id: 2, brand: 'Honda', model: 'CR-V', year: 2021, plate_number: 'DEF-5678', daily_rate: 75.00, status: 'rented' },
-          { id: 3, brand: 'Ford', model: 'Transit', year: 2023, plate_number: 'GHI-9012', daily_rate: 90.00, status: 'maintenance' }
+          { id: 1, brand: 'Toyota', model: 'Camry', year: 2022, plate_number: 'ABC-1234', daily_rate: 2000.00, status: 'available' },
+          { id: 2, brand: 'Honda', model: 'CR-V', year: 2021, plate_number: 'DEF-5678', daily_rate: 3000.00, status: 'rented' },
+          { id: 3, brand: 'Ford', model: 'Transit', year: 2023, plate_number: 'GHI-9012', daily_rate: 3500.00, status: 'maintenance' }
         ]
       } finally {
         loading.value = false

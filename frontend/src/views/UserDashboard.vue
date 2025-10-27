@@ -69,8 +69,8 @@
         <div class="stat-icon">
           <i class="fas fa-dollar-sign"></i>
         </div>
-        <div class="stat-content">
-          <h3>${{ stats.totalSpent }}</h3>
+        <div class="stat-card">
+          <h3>₱{{ stats.totalSpent }}</h3>
           <p>Total Spent</p>
         </div>
       </div>
@@ -127,7 +127,7 @@
             <span :class="['status-badge', booking.status]">
               {{ booking.status.charAt(0).toUpperCase() + booking.status.slice(1) }}
             </span>
-            <p class="booking-amount">${{ booking.total_amount }}</p>
+            <p class="booking-amount">₱{{ booking.total_amount }}</p>
           </div>
         </div>
       </div>
@@ -166,7 +166,7 @@
             <h4>{{ vehicle.brand }} {{ vehicle.model }}</h4>
             <p class="vehicle-year">{{ vehicle.year }}</p>
             <div class="vehicle-rate">
-              <span class="price">${{ vehicle.daily_rate }}</span>
+              <span class="price">₱{{ vehicle.daily_rate }}</span>
               <span class="period">/day</span>
             </div>
             <button class="btn-primary btn-small">
