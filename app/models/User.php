@@ -4,58 +4,76 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 class User extends Model {
     
     protected $table = 'users';
-    protected $primaryKey = 'id';
+    protected $primary_key = 'id';
+    protected $soft_delete = true; // Enable soft deletes
     
     /**
      * Get all users with optional filtering
      */
     public function getAllUsers($filters = []) {
-        $query = "SELECT id, first_name, last_name, email, phone, role, status FROM users WHERE deleted_at IS NULL";
-        $params = [];
-        
-        if (!empty($filters['status'])) {
-            $query .= " AND status = ?";
-            $params[] = $filters['status'];
-        }
-        
-        if (!empty($filters['role'])) {
-            $query .= " AND role = ?";
-            $params[] = $filters['role'];
-        }
-        
+
         if (!empty($filters['search'])) {
-            $query .= " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)";
+            $query = "SELECT id, first_name, last_name, email, phone, role, status FROM users WHERE deleted_at IS NULL";
+            $params = [];
+            
+            if (!empty($filters['status'])) {
+                $query .= " AND status = ?";
+                $params[] = $filters['status'];
+            }
+            
+            if (!empty($filters['role'])) {
+                $query .= " AND role = ?";
+                $params[] = $filters['role'];
+            }
+            
             $search = '%' . $filters['search'] . '%';
+            $query .= " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)";
             $params[] = $search;
             $params[] = $search;
             $params[] = $search;
+            
+            $query .= " ORDER BY first_name, last_name";
+            
+            $stmt = $this->db->raw($query, $params);
+            return $stmt->fetchAll();
         }
         
-        $query .= " ORDER BY first_name, last_name";
+        $users = $this->all(); // Gets all non-deleted users
         
-        return $this->db->query($query, $params);
+        // Apply filters if needed
+        if (!empty($filters['status']) || !empty($filters['role'])) {
+            $users = array_filter($users, function($user) use ($filters) {
+                if (!empty($filters['status']) && $user->status !== $filters['status']) {
+                    return false;
+                }
+                if (!empty($filters['role']) && $user->role !== $filters['role']) {
+                    return false;
+                }
+                return true;
+            });
+        }
+        
+        return array_values($users); // Re-index array
     }
     
     /**
-     * Get user by ID
+     * Get user by ID using ORM
      */
     public function getUserById($id) {
-        $query = "SELECT id, first_name, last_name, email, phone, role, status FROM users WHERE id = ? AND deleted_at IS NULL";
-        $result = $this->db->query($query, [$id]);
-        return !empty($result) ? $result[0] : null;
+        return $this->find($id); // ORM method
     }
     
     /**
      * Get user by email
      */
     public function getUserByEmail($email) {
-        $query = "SELECT id, first_name, last_name, email, phone, password, role, status FROM users WHERE email = ? AND deleted_at IS NULL";
-        $result = $this->db->query($query, [$email]);
+        $stmt = $this->db->raw("SELECT id, first_name, last_name, email, phone, password, role, status FROM users WHERE email = ? AND deleted_at IS NULL", [$email]);
+        $result = $stmt->fetchAll();
         return !empty($result) ? $result[0] : null;
     }
     
     /**
-     * Create new user
+     * Create new user using ORM
      */
     public function createUser($data) {
         // Validate required fields
@@ -66,48 +84,39 @@ class User extends Model {
             }
         }
         
-        // Validate email format
         if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
             throw new Exception("Invalid email format");
         }
         
-        // Check if email already exists
         if ($this->getUserByEmail($data['email'])) {
             throw new Exception("Email already exists");
         }
         
-        // Hash password
         $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
         
-        // Set defaults
         $data['role'] = $data['role'] ?? 'user';
         $data['status'] = $data['status'] ?? 'active';
         
-        $query = "INSERT INTO users (first_name, last_name, email, phone, password, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        $params = [
-            $data['first_name'],
-            $data['last_name'], 
-            $data['email'],
-            $data['phone'] ?? null,
-            $data['password'],
-            $data['role'],
-            $data['status']
-        ];
-        
-        return $this->db->query($query, $params);
+        return $this->insert([
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'], 
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'password' => $data['password'],
+            'role' => $data['role'],
+            'status' => $data['status']
+        ]);
     }
     
     /**
      * Update user
      */
     public function updateUser($id, $data) {
-        // Check if user exists
         $user = $this->getUserById($id);
         if (!$user) {
             throw new Exception("User not found");
         }
         
-        // Validate email if provided
         if (!empty($data['email'])) {
             if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
                 throw new Exception("Invalid email format");
@@ -120,36 +129,30 @@ class User extends Model {
             }
         }
         
-        $updateFields = [];
-        $params = [];
-        
+        $updateData = [];
         $allowedFields = ['first_name', 'last_name', 'email', 'phone', 'role', 'status'];
         
         foreach ($allowedFields as $field) {
             if (isset($data[$field])) {
-                $updateFields[] = "$field = ?";
-                $params[] = $data[$field];
+                $updateData[$field] = $data[$field];
             }
         }
         
         // Handle password update separately
         if (!empty($data['password'])) {
-            $updateFields[] = "password = ?";
-            $params[] = password_hash($data['password'], PASSWORD_DEFAULT);
+            $updateData['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
         }
         
-        if (empty($updateFields)) {
+        if (empty($updateData)) {
             throw new Exception("No valid fields to update");
         }
         
-        $params[] = $id;
-        $query = "UPDATE users SET " . implode(', ', $updateFields) . " WHERE id = ?";
-        
-        return $this->db->query($query, $params);
+        // Use ORM update method
+        return $this->update($id, $updateData);
     }
     
     /**
-     * Soft delete user
+     * Soft delete user using ORM
      */
     public function deleteUser($id) {
         // Check if user exists
@@ -158,8 +161,8 @@ class User extends Model {
             throw new Exception("User not found");
         }
         
-        $query = "UPDATE users SET deleted_at = NOW() WHERE id = ?";
-        return $this->db->query($query, [$id]);
+        // Use ORM soft delete method
+        return $this->soft_delete($id);
     }
     
     /**
@@ -192,28 +195,34 @@ class User extends Model {
         $stats = [];
         
         // Total users
-        $result = $this->db->query("SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL");
-        $stats['total_users'] = $result[0]['count'];
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['total_users'] = $result['count'];
         
         // Active users
-        $result = $this->db->query("SELECT COUNT(*) as count FROM users WHERE status = 'active' AND deleted_at IS NULL");
-        $stats['active_users'] = $result[0]['count'];
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE status = 'active' AND deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['active_users'] = $result['count'];
         
         // Inactive users
-        $result = $this->db->query("SELECT COUNT(*) as count FROM users WHERE status = 'inactive' AND deleted_at IS NULL");
-        $stats['inactive_users'] = $result[0]['count'];
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE status = 'inactive' AND deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['inactive_users'] = $result['count'];
         
         // Suspended users
-        $result = $this->db->query("SELECT COUNT(*) as count FROM users WHERE status = 'suspended' AND deleted_at IS NULL");
-        $stats['suspended_users'] = $result[0]['count'];
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE status = 'suspended' AND deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['suspended_users'] = $result['count'];
         
         // Admins
-        $result = $this->db->query("SELECT COUNT(*) as count FROM users WHERE role = 'admin' AND deleted_at IS NULL");
-        $stats['admin_users'] = $result[0]['count'];
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE role = 'admin' AND deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['admin_users'] = $result['count'];
         
         // Regular users
-        $result = $this->db->query("SELECT COUNT(*) as count FROM users WHERE role = 'user' AND deleted_at IS NULL");
-        $stats['regular_users'] = $result[0]['count'];
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE role = 'user' AND deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['regular_users'] = $result['count'];
         
         return $stats;
     }

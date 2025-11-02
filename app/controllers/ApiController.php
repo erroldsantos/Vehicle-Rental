@@ -2,14 +2,10 @@
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
 /**
- * Base API Controller
  * 
  * All API controllers should extend this class.
- * Provides database access and common helper methods.
  */
 class ApiController extends Controller {
-    
-    protected $db;
     
     public function __construct() {
         parent::__construct();
@@ -17,9 +13,9 @@ class ApiController extends Controller {
         // Load API library for all API controllers
         $this->call->library('api');
         
-        // Load Database helper
-        require_once APP_DIR . 'helpers/Database.php';
-        $this->db = Database::getInstance();
+        // Explicitly load and assign database to $this->db
+        $this->call->database();
+        // The database is now accessible via $this->db (assigned by __get magic method)
     }
     
     /**
@@ -84,8 +80,9 @@ class ApiController extends Controller {
         $this->api->require_method('GET');
         
         try {
-            // Test database connection
-            $result = $this->db->queryOne("SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL");
+            // Test database connection using raw SQL
+            $stmt = $this->db->raw('SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL');
+            $result = $stmt->fetch();
             $userCount = $result['count'];
             
             $this->api->respond([

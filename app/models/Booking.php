@@ -4,14 +4,15 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 class Booking extends Model {
     
     protected $table = 'bookings';
-    protected $primaryKey = 'id';
+    protected $primary_key = 'id';
+    protected $soft_delete = true; // Enable soft deletes
     
     /**
      * Get all bookings with user and vehicle details
      */
     public function getAllBookings($filters = []) {
         $query = "SELECT b.id, b.booking_reference, b.start_date, b.end_date, 
-                         b.total_amount, b.status, b.notes, b.created_at,
+                         b.total_amount, b.status, b.notes, b.pickup_location, b.dropoff_location, b.created_at,
                          u.first_name, u.last_name, u.email,
                          v.brand, v.model, v.plate_number, v.daily_rate
                   FROM bookings b
@@ -53,7 +54,8 @@ class Booking extends Model {
         
         $query .= " ORDER BY b.created_at DESC";
         
-        return $this->db->query($query, $params);
+        $stmt = $this->db->raw($query, $params);
+        return $stmt->fetchAll();
     }
     
     /**
@@ -67,7 +69,8 @@ class Booking extends Model {
                   LEFT JOIN users u ON b.user_id = u.id
                   LEFT JOIN vehicles v ON b.vehicle_id = v.id
                   WHERE b.id = ? AND b.deleted_at IS NULL";
-        $result = $this->db->query($query, [$id]);
+        $stmt = $this->db->raw($query, [$id]);
+        $result = $stmt->fetchAll();
         return !empty($result) ? $result[0] : null;
     }
     
@@ -91,8 +94,9 @@ class Booking extends Model {
             $params[] = $exclude_booking_id;
         }
         
-        $result = $this->db->query($query, $params);
-        return $result[0]['count'] == 0;
+        $stmt = $this->db->raw($query, $params);
+        $result = $stmt->fetch();
+        return $result['count'] == 0;
     }
     
     /**
@@ -114,7 +118,8 @@ class Booking extends Model {
                   )
                   ORDER BY v.daily_rate ASC";
         
-        return $this->db->query($query, [$start_date, $start_date, $end_date, $end_date, $start_date, $end_date]);
+        $stmt = $this->db->raw($query, [$start_date, $start_date, $end_date, $end_date, $start_date, $end_date]);
+        return $stmt->fetchAll();
     }
     
     /**
@@ -123,7 +128,8 @@ class Booking extends Model {
     public function generateBookingReference() {
         do {
             $reference = 'BK-' . date('Y') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
-            $result = $this->db->query("SELECT id FROM bookings WHERE booking_reference = ?", [$reference]);
+            $stmt = $this->db->raw("SELECT id FROM bookings WHERE booking_reference = ?", [$reference]);
+            $result = $stmt->fetchAll();
         } while (!empty($result));
         
         return $reference;
@@ -134,7 +140,8 @@ class Booking extends Model {
      */
     public function calculateTotalAmount($vehicle_id, $start_date, $end_date) {
         // Get vehicle daily rate
-        $result = $this->db->query("SELECT daily_rate FROM vehicles WHERE id = ?", [$vehicle_id]);
+        $stmt = $this->db->raw("SELECT daily_rate FROM vehicles WHERE id = ?", [$vehicle_id]);
+        $result = $stmt->fetchAll();
         if (empty($result)) {
             throw new Exception("Vehicle not found");
         }
@@ -150,7 +157,7 @@ class Booking extends Model {
     }
     
     /**
-     * Create new booking
+     * Create new booking using ORM
      */
     public function createBooking($data) {
         // Validate required fields
@@ -187,24 +194,25 @@ class Booking extends Model {
         // Set defaults
         $status = $data['status'] ?? 'pending';
         $notes = $data['notes'] ?? null;
+        $pickup_location = $data['pickup_location'] ?? null;
+        $dropoff_location = $data['dropoff_location'] ?? null;
         
-        $query = "INSERT INTO bookings (booking_reference, user_id, vehicle_id, start_date, end_date, total_amount, status, notes) 
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        $params = [
-            $booking_reference,
-            $data['user_id'],
-            $data['vehicle_id'],
-            $start_date,
-            $end_date,
-            $total_amount,
-            $status,
-            $notes
-        ];
-        
-        $this->db->query($query, $params);
+        // Use ORM insert method
+        $this->insert([
+            'booking_reference' => $booking_reference,
+            'user_id' => $data['user_id'],
+            'vehicle_id' => $data['vehicle_id'],
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+            'total_amount' => $total_amount,
+            'status' => $status,
+            'notes' => $notes,
+            'pickup_location' => $pickup_location,
+            'dropoff_location' => $dropoff_location
+        ]);
         
         // Get the created booking ID
-        $booking_id = $this->db->lastInsertId();
+        $booking_id = $this->db->last_id();
         
         // Update vehicle status if booking is confirmed
         if ($status === 'confirmed') {
@@ -215,7 +223,7 @@ class Booking extends Model {
     }
     
     /**
-     * Update booking
+     * Update booking using ORM
      */
     public function updateBooking($id, $data) {
         // Check if booking exists
@@ -241,15 +249,12 @@ class Booking extends Model {
             }
         }
         
-        $updateFields = [];
-        $params = [];
-        
-        $allowedFields = ['user_id', 'vehicle_id', 'start_date', 'end_date', 'status', 'notes'];
+        $updateData = [];
+        $allowedFields = ['user_id', 'vehicle_id', 'start_date', 'end_date', 'status', 'notes', 'pickup_location', 'dropoff_location'];
         
         foreach ($allowedFields as $field) {
             if (isset($data[$field])) {
-                $updateFields[] = "$field = ?";
-                $params[] = $data[$field];
+                $updateData[$field] = $data[$field];
             }
         }
         
@@ -260,18 +265,15 @@ class Booking extends Model {
             $end_date = $data['end_date'] ?? $booking['end_date'];
             
             $total_amount = $this->calculateTotalAmount($vehicle_id, $start_date, $end_date);
-            $updateFields[] = "total_amount = ?";
-            $params[] = $total_amount;
+            $updateData['total_amount'] = $total_amount;
         }
         
-        if (empty($updateFields)) {
+        if (empty($updateData)) {
             throw new Exception("No valid fields to update");
         }
         
-        $params[] = $id;
-        $query = "UPDATE bookings SET " . implode(', ', $updateFields) . " WHERE id = ?";
-        
-        $this->db->query($query, $params);
+        // Use ORM update method
+        $this->update($id, $updateData);
         
         // Update vehicle status if status changed
         if (isset($data['status'])) {
@@ -285,7 +287,7 @@ class Booking extends Model {
     }
     
     /**
-     * Cancel booking (soft delete)
+     * Cancel booking
      */
     public function cancelBooking($id) {
         // Check if booking exists
@@ -294,9 +296,8 @@ class Booking extends Model {
             throw new Exception("Booking not found");
         }
         
-        // Update booking status to cancelled
-        $query = "UPDATE bookings SET status = 'cancelled' WHERE id = ?";
-        $this->db->query($query, [$id]);
+        // Update booking status to cancelled using ORM
+        $this->update($id, ['status' => 'cancelled']);
         
         // Update vehicle status
         $this->updateVehicleStatus($booking['vehicle_id'], $booking['start_date'], $booking['end_date']);
@@ -305,7 +306,7 @@ class Booking extends Model {
     }
     
     /**
-     * Delete booking (soft delete)
+     * Delete booking using ORM soft delete
      */
     public function deleteBooking($id) {
         // Check if booking exists
@@ -314,8 +315,8 @@ class Booking extends Model {
             throw new Exception("Booking not found");
         }
         
-        $query = "UPDATE bookings SET deleted_at = NOW() WHERE id = ?";
-        $this->db->query($query, [$id]);
+        // Use ORM soft delete method
+        $this->soft_delete($id);
         
         // Update vehicle status
         $this->updateVehicleStatus($booking['vehicle_id'], $booking['start_date'], $booking['end_date']);
@@ -335,12 +336,13 @@ class Booking extends Model {
                   AND start_date <= CURDATE() 
                   AND end_date >= CURDATE()";
         
-        $result = $this->db->query($query, [$vehicle_id]);
-        $active_bookings = $result[0]['count'];
+        $stmt = $this->db->raw($query, [$vehicle_id]);
+        $result = $stmt->fetch();
+        $active_bookings = $result['count'];
         
         // Update vehicle status
         $new_status = $active_bookings > 0 ? 'rented' : 'available';
-        $this->db->query("UPDATE vehicles SET status = ? WHERE id = ?", [$new_status, $vehicle_id]);
+        $this->db->raw("UPDATE vehicles SET status = ? WHERE id = ?", [$new_status, $vehicle_id]);
     }
     
     /**
@@ -350,23 +352,27 @@ class Booking extends Model {
         $stats = [];
         
         // Total bookings
-        $result = $this->db->query("SELECT COUNT(*) as count FROM bookings WHERE deleted_at IS NULL");
-        $stats['total_bookings'] = $result[0]['count'];
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM bookings WHERE deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['total_bookings'] = $result['count'];
         
         // Bookings by status
         $statuses = ['pending', 'confirmed', 'completed', 'cancelled'];
         foreach ($statuses as $status) {
-            $result = $this->db->query("SELECT COUNT(*) as count FROM bookings WHERE status = ? AND deleted_at IS NULL", [$status]);
-            $stats[$status . '_bookings'] = $result[0]['count'];
+            $stmt = $this->db->raw("SELECT COUNT(*) as count FROM bookings WHERE status = ? AND deleted_at IS NULL", [$status]);
+            $result = $stmt->fetch();
+            $stats[$status . '_bookings'] = $result['count'];
         }
         
         // Revenue
-        $result = $this->db->query("SELECT SUM(total_amount) as revenue FROM bookings WHERE status IN ('confirmed', 'completed') AND deleted_at IS NULL");
-        $stats['total_revenue'] = $result[0]['revenue'] ?? 0;
+        $stmt = $this->db->raw("SELECT SUM(total_amount) as revenue FROM bookings WHERE status IN ('confirmed', 'completed') AND deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['total_revenue'] = $result['revenue'] ?? 0;
         
         // This month's bookings
-        $result = $this->db->query("SELECT COUNT(*) as count FROM bookings WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE()) AND deleted_at IS NULL");
-        $stats['monthly_bookings'] = $result[0]['count'];
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM bookings WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE()) AND deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['monthly_bookings'] = $result['count'];
         
         return $stats;
     }

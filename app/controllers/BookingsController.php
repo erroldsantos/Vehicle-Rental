@@ -5,12 +5,10 @@ require_once APP_DIR . 'controllers/ApiController.php';
 
 class BookingsController extends ApiController {
     
-    protected $pdo;
-    
     public function __construct() {
         parent::__construct();
-        // Get PDO connection from Database helper for backward compatibility
-        $this->pdo = $this->db->getConnection();
+        // Load the Booking model (ORM-based)
+        $this->call->model('Booking');
     }
     
     /**
@@ -30,55 +28,17 @@ class BookingsController extends ApiController {
                 'search' => $_GET['search'] ?? null
             ];
             
-            $query = "SELECT b.id, b.booking_reference, b.start_date, b.end_date, 
-                             b.total_amount, b.status, b.notes, b.created_at, b.user_id, b.vehicle_id,
-                             u.first_name, u.last_name, u.email,
-                             v.brand, v.model, v.plate_number, v.daily_rate, v.image as vehicle_image
-                      FROM bookings b
-                      LEFT JOIN users u ON b.user_id = u.id
-                      LEFT JOIN vehicles v ON b.vehicle_id = v.id
-                      WHERE b.deleted_at IS NULL";
-            $params = [];
+            $bookings = $this->Booking->getAllBookings($filters);
             
-            if (!empty($filters['status'])) {
-                $query .= " AND b.status = ?";
-                $params[] = $filters['status'];
+            // Convert objects to arrays for consistent JSON output
+            if (!empty($bookings)) {
+                $bookings = array_map(function($booking) {
+                    return is_object($booking) ? (array)$booking : $booking;
+                }, $bookings);
             }
-            
-            if (!empty($filters['user_id'])) {
-                $query .= " AND b.user_id = ?";
-                $params[] = $filters['user_id'];
-            }
-            
-            if (!empty($filters['vehicle_id'])) {
-                $query .= " AND b.vehicle_id = ?";
-                $params[] = $filters['vehicle_id'];
-            }
-            
-            if (!empty($filters['start_date'])) {
-                $query .= " AND b.start_date >= ?";
-                $params[] = $filters['start_date'];
-            }
-            
-            if (!empty($filters['end_date'])) {
-                $query .= " AND b.end_date <= ?";
-                $params[] = $filters['end_date'];
-            }
-            
-            if (!empty($filters['search'])) {
-                $query .= " AND (b.booking_reference LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR v.brand LIKE ? OR v.model LIKE ?)";
-                $search = '%' . $filters['search'] . '%';
-                $params = array_merge($params, [$search, $search, $search, $search, $search]);
-            }
-            
-            $query .= " ORDER BY b.created_at DESC";
-            
-            $stmt = $this->pdo->prepare($query);
-            $stmt->execute($params);
-            $bookings = $stmt->fetchAll();
             
             // Get statistics
-            $stats = $this->getBookingStats();
+            $stats = $this->Booking->getBookingStats();
             
             $this->api->respond([
                 'bookings' => $bookings,
@@ -103,20 +63,16 @@ class BookingsController extends ApiController {
                 return;
             }
             
-            $stmt = $this->pdo->prepare("SELECT b.*, 
-                                                u.first_name, u.last_name, u.email, u.phone,
-                                                v.brand, v.model, v.plate_number, v.daily_rate
-                                         FROM bookings b
-                                         LEFT JOIN users u ON b.user_id = u.id
-                                         LEFT JOIN vehicles v ON b.vehicle_id = v.id
-                                         WHERE b.id = ? AND b.deleted_at IS NULL");
-            $stmt->execute([$id]);
-            $booking = $stmt->fetch();
+            // Use ORM to find booking
+            $booking = $this->Booking->getBookingById($id);
             
             if (!$booking) {
                 $this->api->respond_error('Booking not found', 404);
                 return;
             }
+            
+            // Convert object to array if needed
+            $booking = is_object($booking) ? (array)$booking : $booking;
             
             $this->api->respond($booking);
             
@@ -140,103 +96,18 @@ class BookingsController extends ApiController {
                 return;
             }
             
-            // Validate required fields
-            $required = ['user_id', 'vehicle_id', 'start_date', 'end_date'];
-            foreach ($required as $field) {
-                if (empty($input[$field])) {
-                    $this->api->respond_error("Field '$field' is required", 400);
-                    return;
-                }
-            }
-            
-            // Validate dates
-            $start_date = $input['start_date'];
-            $end_date = $input['end_date'];
-            
-            if ($start_date >= $end_date) {
-                $this->api->respond_error('End date must be after start date', 400);
-                return;
-            }
-            
-            if ($start_date < date('Y-m-d')) {
-                $this->api->respond_error('Start date cannot be in the past', 400);
-                return;
-            }
-            
-            // Check if user exists
-            $stmt = $this->pdo->prepare("SELECT id FROM users WHERE id = ? AND deleted_at IS NULL");
-            $stmt->execute([$input['user_id']]);
-            if (!$stmt->fetch()) {
-                $this->api->respond_error('User not found', 400);
-                return;
-            }
-            
-            // Check if vehicle exists and is available
-            $stmt = $this->pdo->prepare("SELECT id, daily_rate FROM vehicles WHERE id = ? AND deleted_at IS NULL");
-            $stmt->execute([$input['vehicle_id']]);
-            $vehicle = $stmt->fetch();
-            if (!$vehicle) {
-                $this->api->respond_error('Vehicle not found', 400);
-                return;
-            }
-            
-            // Check vehicle availability
-            if (!$this->checkVehicleAvailability($input['vehicle_id'], $start_date, $end_date)) {
-                $this->api->respond_error('Vehicle is not available for the selected dates', 400);
-                return;
-            }
-            
-            // Generate booking reference
-            $booking_reference = $this->generateBookingReference();
-            
-            // Calculate total amount
-            $total_amount = $this->calculateTotalAmount($input['vehicle_id'], $start_date, $end_date);
-            
-            // Set defaults
-            $status = $input['status'] ?? 'pending';
-            $notes = $input['notes'] ?? null;
-            
-            // Validate status
-            if (!in_array($status, ['pending', 'confirmed', 'completed', 'cancelled'])) {
-                $this->api->respond_error('Invalid status', 400);
-                return;
-            }
-            
-            // Insert booking
-            $stmt = $this->pdo->prepare("INSERT INTO bookings (booking_reference, user_id, vehicle_id, start_date, end_date, total_amount, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([
-                $booking_reference,
-                $input['user_id'],
-                $input['vehicle_id'],
-                $start_date,
-                $end_date,
-                $total_amount,
-                $status,
-                $notes
-            ]);
-            
-            $booking_id = $this->pdo->lastInsertId();
-            
-            // Update vehicle status if booking is confirmed
-            if ($status === 'confirmed') {
-                $this->updateVehicleStatus($input['vehicle_id']);
-            }
+            // create booking (includes validation)
+            $booking_id = $this->Booking->createBooking($input);
             
             // Fetch and return the created booking
-            $stmt = $this->pdo->prepare("SELECT b.*, 
-                                                u.first_name, u.last_name, u.email,
-                                                v.brand, v.model, v.plate_number
-                                         FROM bookings b
-                                         LEFT JOIN users u ON b.user_id = u.id
-                                         LEFT JOIN vehicles v ON b.vehicle_id = v.id
-                                         WHERE b.id = ?");
-            $stmt->execute([$booking_id]);
-            $booking = $stmt->fetch();
+            $booking = $this->Booking->getBookingById($booking_id);
+            $booking = is_object($booking) ? (array)$booking : $booking;
             
             $this->api->respond($booking, 201);
             
         } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), 500);
+            // Model throws exceptions with validation errors
+            $this->api->respond_error($e->getMessage(), 400);
         }
     }
     
@@ -260,94 +131,22 @@ class BookingsController extends ApiController {
                 return;
             }
             
-            // Check if booking exists
-            $stmt = $this->pdo->prepare("SELECT * FROM bookings WHERE id = ? AND deleted_at IS NULL");
-            $stmt->execute([$id]);
-            $booking = $stmt->fetch();
-            if (!$booking) {
-                $this->api->respond_error('Booking not found', 404);
-                return;
-            }
-            
-            // Validate dates if provided
-            if (isset($input['start_date']) && isset($input['end_date'])) {
-                if ($input['start_date'] >= $input['end_date']) {
-                    $this->api->respond_error('End date must be after start date', 400);
-                    return;
-                }
-                
-                if ($input['start_date'] < date('Y-m-d')) {
-                    $this->api->respond_error('Start date cannot be in the past', 400);
-                    return;
-                }
-                
-                // Check vehicle availability (excluding current booking)
-                $vehicle_id = $input['vehicle_id'] ?? $booking['vehicle_id'];
-                if (!$this->checkVehicleAvailability($vehicle_id, $input['start_date'], $input['end_date'], $id)) {
-                    $this->api->respond_error('Vehicle is not available for the selected dates', 400);
-                    return;
-                }
-            }
-            
-            // Validate status if provided
-            if (isset($input['status']) && !in_array($input['status'], ['pending', 'confirmed', 'completed', 'cancelled'])) {
-                $this->api->respond_error('Invalid status', 400);
-                return;
-            }
-            
-            $updateFields = [];
-            $params = [];
-            
-            $allowedFields = ['user_id', 'vehicle_id', 'start_date', 'end_date', 'status', 'notes'];
-            
-            foreach ($allowedFields as $field) {
-                if (isset($input[$field])) {
-                    $updateFields[] = "$field = ?";
-                    $params[] = $input[$field];
-                }
-            }
-            
-            // Recalculate total amount if dates or vehicle changed
-            if (isset($input['start_date']) || isset($input['end_date']) || isset($input['vehicle_id'])) {
-                $vehicle_id = $input['vehicle_id'] ?? $booking['vehicle_id'];
-                $start_date = $input['start_date'] ?? $booking['start_date'];
-                $end_date = $input['end_date'] ?? $booking['end_date'];
-                
-                $total_amount = $this->calculateTotalAmount($vehicle_id, $start_date, $end_date);
-                $updateFields[] = "total_amount = ?";
-                $params[] = $total_amount;
-            }
-            
-            if (empty($updateFields)) {
-                $this->api->respond_error('No valid fields to update', 400);
-                return;
-            }
-            
-            $params[] = $id;
-            $query = "UPDATE bookings SET " . implode(', ', $updateFields) . " WHERE id = ?";
-            
-            $stmt = $this->pdo->prepare($query);
-            $stmt->execute($params);
-            
-            // Update vehicle status
-            $vehicle_id = $input['vehicle_id'] ?? $booking['vehicle_id'];
-            $this->updateVehicleStatus($vehicle_id);
+            // update booking (includes validation)
+            $this->Booking->updateBooking($id, $input);
             
             // Fetch and return the updated booking
-            $stmt = $this->pdo->prepare("SELECT b.*, 
-                                                u.first_name, u.last_name, u.email,
-                                                v.brand, v.model, v.plate_number
-                                         FROM bookings b
-                                         LEFT JOIN users u ON b.user_id = u.id
-                                         LEFT JOIN vehicles v ON b.vehicle_id = v.id
-                                         WHERE b.id = ?");
-            $stmt->execute([$id]);
-            $booking = $stmt->fetch();
+            $booking = $this->Booking->getBookingById($id);
+            $booking = is_object($booking) ? (array)$booking : $booking;
             
             $this->api->respond($booking);
             
         } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), 500);
+            // Handle different error types
+            if (strpos($e->getMessage(), 'not found') !== false) {
+                $this->api->respond_error($e->getMessage(), 404);
+            } else {
+                $this->api->respond_error($e->getMessage(), 400);
+            }
         }
     }
     
@@ -364,26 +163,17 @@ class BookingsController extends ApiController {
                 return;
             }
             
-            // Check if booking exists
-            $stmt = $this->pdo->prepare("SELECT * FROM bookings WHERE id = ? AND deleted_at IS NULL");
-            $stmt->execute([$id]);
-            $booking = $stmt->fetch();
-            if (!$booking) {
-                $this->api->respond_error('Booking not found', 404);
-                return;
-            }
-            
-            // Update booking status to cancelled
-            $stmt = $this->pdo->prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?");
-            $stmt->execute([$id]);
-            
-            // Update vehicle status
-            $this->updateVehicleStatus($booking['vehicle_id']);
+            // cancel booking
+            $this->Booking->cancelBooking($id);
             
             $this->api->respond(['message' => 'Booking cancelled successfully']);
             
         } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), 500);
+            if (strpos($e->getMessage(), 'not found') !== false) {
+                $this->api->respond_error($e->getMessage(), 404);
+            } else {
+                $this->api->respond_error($e->getMessage(), 500);
+            }
         }
     }
     
@@ -400,26 +190,17 @@ class BookingsController extends ApiController {
                 return;
             }
             
-            // Check if booking exists
-            $stmt = $this->pdo->prepare("SELECT * FROM bookings WHERE id = ? AND deleted_at IS NULL");
-            $stmt->execute([$id]);
-            $booking = $stmt->fetch();
-            if (!$booking) {
-                $this->api->respond_error('Booking not found', 404);
-                return;
-            }
-            
-            // Soft delete
-            $stmt = $this->pdo->prepare("UPDATE bookings SET deleted_at = NOW() WHERE id = ?");
-            $stmt->execute([$id]);
-            
-            // Update vehicle status
-            $this->updateVehicleStatus($booking['vehicle_id']);
+            // soft delete booking
+            $this->Booking->deleteBooking($id);
             
             $this->api->respond(['message' => 'Booking deleted successfully']);
             
         } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), 500);
+            if (strpos($e->getMessage(), 'not found') !== false) {
+                $this->api->respond_error($e->getMessage(), 404);
+            } else {
+                $this->api->respond_error($e->getMessage(), 500);
+            }
         }
     }
     
@@ -444,24 +225,14 @@ class BookingsController extends ApiController {
                 return;
             }
             
-            $query = "SELECT v.* FROM vehicles v
-                      WHERE v.status = 'available' 
-                      AND v.deleted_at IS NULL
-                      AND v.id NOT IN (
-                          SELECT DISTINCT b.vehicle_id FROM bookings b
-                          WHERE b.status IN ('pending', 'confirmed')
-                          AND b.deleted_at IS NULL
-                          AND (
-                              (b.start_date <= ? AND b.end_date >= ?) OR
-                              (b.start_date <= ? AND b.end_date >= ?) OR
-                              (b.start_date >= ? AND b.end_date <= ?)
-                          )
-                      )
-                      ORDER BY v.daily_rate ASC";
+            $vehicles = $this->Booking->getAvailableVehicles($start_date, $end_date);
             
-            $stmt = $this->pdo->prepare($query);
-            $stmt->execute([$start_date, $start_date, $end_date, $end_date, $start_date, $end_date]);
-            $vehicles = $stmt->fetchAll();
+            // Convert objects to arrays for consistent JSON output
+            if (!empty($vehicles)) {
+                $vehicles = array_map(function($vehicle) {
+                    return is_object($vehicle) ? (array)$vehicle : $vehicle;
+                }, $vehicles);
+            }
             
             $this->api->respond(['vehicles' => $vehicles]);
             
@@ -478,8 +249,7 @@ class BookingsController extends ApiController {
         $this->api->require_method('GET');
         
         try {
-            $stmt = $this->pdo->prepare("SELECT id, first_name, last_name, email FROM users WHERE deleted_at IS NULL ORDER BY first_name, last_name");
-            $stmt->execute();
+            $stmt = $this->db->raw("SELECT id, first_name, last_name, email FROM users WHERE deleted_at IS NULL ORDER BY first_name, last_name");
             $users = $stmt->fetchAll();
             
             $this->api->respond(['users' => $users]);
@@ -487,120 +257,6 @@ class BookingsController extends ApiController {
         } catch (Exception $e) {
             $this->api->respond_error($e->getMessage(), 500);
         }
-    }
-    
-    /**
-     * Check vehicle availability
-     */
-    private function checkVehicleAvailability($vehicle_id, $start_date, $end_date, $exclude_booking_id = null) {
-        $query = "SELECT COUNT(*) as count FROM bookings 
-                  WHERE vehicle_id = ? 
-                  AND status IN ('pending', 'confirmed') 
-                  AND deleted_at IS NULL
-                  AND (
-                      (start_date <= ? AND end_date >= ?) OR
-                      (start_date <= ? AND end_date >= ?) OR
-                      (start_date >= ? AND end_date <= ?)
-                  )";
-        $params = [$vehicle_id, $start_date, $start_date, $end_date, $end_date, $start_date, $end_date];
-        
-        if ($exclude_booking_id) {
-            $query .= " AND id != ?";
-            $params[] = $exclude_booking_id;
-        }
-        
-        $stmt = $this->pdo->prepare($query);
-        $stmt->execute($params);
-        $result = $stmt->fetch();
-        
-        return $result['count'] == 0;
-    }
-    
-    /**
-     * Generate unique booking reference
-     */
-    private function generateBookingReference() {
-        do {
-            $reference = 'BK-' . date('Y') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
-            $stmt = $this->pdo->prepare("SELECT id FROM bookings WHERE booking_reference = ?");
-            $stmt->execute([$reference]);
-            $exists = $stmt->fetch();
-        } while ($exists);
-        
-        return $reference;
-    }
-    
-    /**
-     * Calculate total amount based on daily rate and duration
-     */
-    private function calculateTotalAmount($vehicle_id, $start_date, $end_date) {
-        // Get vehicle daily rate
-        $stmt = $this->pdo->prepare("SELECT daily_rate FROM vehicles WHERE id = ?");
-        $stmt->execute([$vehicle_id]);
-        $vehicle = $stmt->fetch();
-        
-        if (!$vehicle) {
-            throw new Exception("Vehicle not found");
-        }
-        
-        $daily_rate = $vehicle['daily_rate'];
-        
-        // Calculate duration in days
-        $start = new DateTime($start_date);
-        $end = new DateTime($end_date);
-        $duration = $end->diff($start)->days + 1; // +1 to include both start and end dates
-        
-        return $daily_rate * $duration;
-    }
-    
-    /**
-     * Update vehicle status based on active bookings
-     */
-    private function updateVehicleStatus($vehicle_id) {
-        // Check if vehicle has any active confirmed bookings
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) as count FROM bookings 
-                                     WHERE vehicle_id = ? 
-                                     AND status = 'confirmed'
-                                     AND deleted_at IS NULL
-                                     AND start_date <= CURDATE() 
-                                     AND end_date >= CURDATE()");
-        $stmt->execute([$vehicle_id]);
-        $result = $stmt->fetch();
-        $active_bookings = $result['count'];
-        
-        // Update vehicle status
-        $new_status = $active_bookings > 0 ? 'rented' : 'available';
-        $stmt = $this->pdo->prepare("UPDATE vehicles SET status = ? WHERE id = ?");
-        $stmt->execute([$new_status, $vehicle_id]);
-    }
-    
-    /**
-     * Get booking statistics
-     */
-    private function getBookingStats() {
-        $stats = [];
-        
-        // Total bookings
-        $stmt = $this->pdo->query("SELECT COUNT(*) as count FROM bookings WHERE deleted_at IS NULL");
-        $stats['total_bookings'] = $stmt->fetchColumn();
-        
-        // Bookings by status
-        $statuses = ['pending', 'confirmed', 'completed', 'cancelled'];
-        foreach ($statuses as $status) {
-            $stmt = $this->pdo->prepare("SELECT COUNT(*) as count FROM bookings WHERE status = ? AND deleted_at IS NULL");
-            $stmt->execute([$status]);
-            $stats[$status . '_bookings'] = $stmt->fetchColumn();
-        }
-        
-        // Revenue
-        $stmt = $this->pdo->query("SELECT COALESCE(SUM(total_amount), 0) as revenue FROM bookings WHERE status IN ('confirmed', 'completed') AND deleted_at IS NULL");
-        $stats['total_revenue'] = $stmt->fetchColumn();
-        
-        // This month's bookings
-        $stmt = $this->pdo->query("SELECT COUNT(*) as count FROM bookings WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE()) AND deleted_at IS NULL");
-        $stats['monthly_bookings'] = $stmt->fetchColumn();
-        
-        return $stats;
     }
 }
 ?>

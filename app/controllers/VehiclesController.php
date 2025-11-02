@@ -5,14 +5,31 @@ require_once APP_DIR . 'controllers/ApiController.php';
 
 class VehiclesController extends ApiController {
 
+    public function __construct() {
+        parent::__construct();
+        // Load the Vehicle model (ORM-based)
+        $this->call->model('Vehicle');
+    }
+
     // GET /vehicles
     public function index() {
         $this->api->require_method('GET');
 
         try {
-            $vehicles = $this->db->query(
-                "SELECT * FROM vehicles WHERE deleted_at IS NULL"
-            );
+            $filters = [
+                'status' => $_GET['status'] ?? null,
+                'search' => $_GET['search'] ?? null
+            ];
+            
+            // Use ORM-based Vehicle model
+            $vehicles = $this->Vehicle->getAllVehicles($filters);
+            
+            // Convert objects to arrays for consistent JSON output
+            if (!empty($vehicles)) {
+                $vehicles = array_map(function($vehicle) {
+                    return is_object($vehicle) ? (array)$vehicle : $vehicle;
+                }, $vehicles);
+            }
             
             $this->success([
                 'vehicles' => $vehicles,
@@ -29,14 +46,15 @@ class VehiclesController extends ApiController {
         $this->api->require_method('GET');
         
         try {
-            $vehicle = $this->db->queryOne(
-                "SELECT * FROM vehicles WHERE id = ? AND deleted_at IS NULL",
-                [(int)$id]
-            );
+            // Use ORM to find vehicle
+            $vehicle = $this->Vehicle->getVehicleById($id);
             
             if (!$vehicle) {
                 return $this->error('Vehicle not found', 404);
             }
+            
+            // Convert object to array if needed
+            $vehicle = is_object($vehicle) ? (array)$vehicle : $vehicle;
             
             $this->success($vehicle);
             
@@ -50,47 +68,23 @@ class VehiclesController extends ApiController {
         $this->api->require_method('POST');
         $input = $this->api->body();
 
-        // Validate required fields
-        if (!$this->validateRequired($input, ['brand','model','year','plate_number','daily_rate'])) {
-            return;
-        }
-
         try {
-            // Check for duplicate plate
-            $existing = $this->db->queryOne(
-                "SELECT id FROM vehicles WHERE plate_number = ? AND deleted_at IS NULL",
-                [$input['plate_number']]
-            );
-            
-            if ($existing) {
-                return $this->error('Vehicle with this plate number already exists', 409);
-            }
-            
-            // Insert vehicle
-            $this->db->execute(
-                "INSERT INTO vehicles (brand, model, year, plate_number, daily_rate, status) 
-                 VALUES (?, ?, ?, ?, ?, ?)",
-                [
-                    $input['brand'],
-                    $input['model'],
-                    (int)$input['year'],
-                    $input['plate_number'],
-                    $input['daily_rate'],
-                    $input['status'] ?? 'available'
-                ]
-            );
-            
-            $id = $this->db->lastInsertId();
+            // Use ORM model to create vehicle (includes validation)
+            $this->Vehicle->createVehicle($input);
+            $id = $this->db->last_id();
             
             // Fetch the created record
-            $created = $this->db->queryOne("SELECT * FROM vehicles WHERE id = ?", [$id]);
+            $created = $this->Vehicle->getVehicleById($id);
+            $created = is_object($created) ? (array)$created : $created;
             
             $this->api->respond($created, 201);
             
         } catch (Exception $e) {
-            $this->handleDbError($e, 'Failed to create vehicle');
+            // Model throws exceptions with validation errors
+            $this->error($e->getMessage(), 400);
         }
     }
+
 
     // PUT /vehicles/{id}
     public function update($id) {
@@ -98,46 +92,22 @@ class VehiclesController extends ApiController {
         $input = $this->api->body();
 
         try {
-            // Check if vehicle exists
-            $vehicle = $this->db->queryOne(
-                "SELECT * FROM vehicles WHERE id = ? AND deleted_at IS NULL",
-                [(int)$id]
-            );
-            
-            if (!$vehicle) {
-                return $this->error('Vehicle not found', 404);
-            }
-
-            // Build update query dynamically
-            $updates = [];
-            $values = [];
-            $fields = ['brand','model','year','plate_number','daily_rate','status'];
-            
-            foreach ($fields as $field) {
-                if (isset($input[$field])) {
-                    $updates[] = "$field = ?";
-                    $values[] = $input[$field];
-                }
-            }
-            
-            if (empty($updates)) {
-                return $this->error('No fields to update', 400);
-            }
-            
-            $values[] = (int)$id; // for WHERE clause
-            
-            $this->db->execute(
-                "UPDATE vehicles SET " . implode(', ', $updates) . " WHERE id = ?",
-                $values
-            );
+            // Use ORM model to update vehicle (includes validation)
+            $this->Vehicle->updateVehicle($id, $input);
             
             // Fetch updated record
-            $updated = $this->db->queryOne("SELECT * FROM vehicles WHERE id = ?", [(int)$id]);
+            $updated = $this->Vehicle->getVehicleById($id);
+            $updated = is_object($updated) ? (array)$updated : $updated;
             
             $this->success($updated, 'Vehicle updated successfully');
             
         } catch (Exception $e) {
-            $this->handleDbError($e, 'Failed to update vehicle');
+            // Handle different error types
+            if (strpos($e->getMessage(), 'not found') !== false) {
+                $this->error($e->getMessage(), 404);
+            } else {
+                $this->error($e->getMessage(), 400);
+            }
         }
     }
 
@@ -146,26 +116,17 @@ class VehiclesController extends ApiController {
         $this->api->require_method('DELETE');
 
         try {
-            // Check if vehicle exists
-            $vehicle = $this->db->queryOne(
-                "SELECT id FROM vehicles WHERE id = ? AND deleted_at IS NULL",
-                [(int)$id]
-            );
-            
-            if (!$vehicle) {
-                return $this->error('Vehicle not found', 404);
-            }
-            
-            // Soft delete
-            $this->db->execute(
-                "UPDATE vehicles SET deleted_at = NOW() WHERE id = ?",
-                [(int)$id]
-            );
+            // Use ORM model to soft delete vehicle
+            $this->Vehicle->deleteVehicle($id);
             
             $this->api->respond(['message' => 'Vehicle deleted successfully']);
             
         } catch (Exception $e) {
-            $this->handleDbError($e, 'Failed to delete vehicle');
+            if (strpos($e->getMessage(), 'not found') !== false) {
+                $this->error($e->getMessage(), 404);
+            } else {
+                $this->error($e->getMessage(), 400);
+            }
         }
     }
 }

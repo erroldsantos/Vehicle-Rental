@@ -10,10 +10,17 @@
 👉 **[Read the Simplified Integration Guide](SIMPLIFIED_INTEGRATION.md)** 👈
 
 This project includes:
-- ✅ **Simplified Database Helper** - No more repetitive PDO connection code
+- ✅ **LavaLust's Native Database** - Using built-in Query Builder
 - ✅ **BaseApiController** - Common API logic in one place
 - ✅ **Vue 3 Frontend** with Vite dev server and proxy
 - ✅ **Clean API patterns** - 70% less code, easier to maintain
+
+### Database Migration Notes
+
+**VehiclesController** - ✅ Fully migrated to LavaLust Query Builder  
+**BookingsController** - ✅ Fully migrated (Query Builder + raw() for complex search)  
+**UsersController** - ✅ Fully migrated (Query Builder + raw() for search filtering)  
+**AuthController**, **PaymentController**, **MaintenanceController** - ✅ Using native methods
 
 ### Running the Project
 

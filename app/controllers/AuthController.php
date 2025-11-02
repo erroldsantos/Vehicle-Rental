@@ -3,14 +3,17 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
 require_once APP_DIR . 'controllers/ApiController.php';
 
+/**
+ * AuthController - User Authentication & Authorization
+ * Uses LavaLust's Lauth library and Session management
+ * Based on: https://lavalust.netlify.app/example/auth
+ */
 class AuthController extends ApiController {
-    
-    protected $pdo;
     
     public function __construct() {
         parent::__construct();
-        // Get PDO connection from Database helper
-        $this->pdo = $this->db->getConnection();
+        $this->call->library('lauth');
+        $this->call->library('session');
     }
     
     /**
@@ -21,12 +24,7 @@ class AuthController extends ApiController {
         $this->api->require_method('POST');
         
         try {
-            $input = json_decode(file_get_contents('php://input'), true);
-            
-            if (!$input) {
-                $this->api->respond_error('Invalid JSON data', 400);
-                return;
-            }
+            $input = $this->api->body();
             
             // Validate required fields
             if (empty($input['email']) || empty($input['password'])) {
@@ -36,59 +34,84 @@ class AuthController extends ApiController {
             
             $email = $input['email'];
             $password = $input['password'];
-            $remember = $input['remember'] ?? false;
             
-            // Check database for user first (prioritize database authentication)
-            try {
-                $stmt = $this->pdo->prepare("SELECT * FROM users WHERE email = ? AND deleted_at IS NULL LIMIT 1");
-                $stmt->execute([$email]);
-                $user = $stmt->fetch();
+            // Attempt login using Lauth library
+            $user = $this->lauth->login($email, $password);
+            
+            if ($user) {
+                // Generate token for API authentication
+                $token = $this->lauth->generate_token($user);
                 
-                if ($user) {
-                    $passwordValid = false;
-                    
-                    // Check if password is hashed (starts with $2y$) or plain text
-                    if (strpos($user['password'], '$2y$') === 0) {
-                        // Password is hashed, use password_verify
-                        $passwordValid = password_verify($password, $user['password']);
-                    } else {
-                        // Password is plain text (for backward compatibility)
-                        $passwordValid = ($password === $user['password']);
-                    }
-                    
-                    if ($passwordValid) {
-                        // Generate token
-                        $token = base64_encode($user['email'] . ':' . time() . ':' . rand(1000, 9999));
-                        
-                        $response = [
-                            'success' => true,
-                            'message' => 'Login successful',
-                            'token' => $token,
-                            'user' => [
-                                'id' => $user['id'],
-                                'email' => $user['email'],
-                                'name' => $user['first_name'] . ' ' . $user['last_name'],
-                                'role' => $user['role'] ?? 'user',
-                                'permissions' => $user['role'] === 'admin' ? ['all'] : ['read']
-                            ]
-                        ];
-                        
-                        $this->api->respond($response);
-                        return;
-                    }
+                // Construct full name from first_name and last_name
+                $fullname = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+                
+                $response = [
+                    'success' => true,
+                    'message' => 'Login successful',
+                    'token' => $token,
+                    'user' => [
+                        'id' => $user['id'],
+                        'email' => $user['email'],
+                        'name' => $fullname,
+                        'role' => $user['role'],
+                        'permissions' => $user['role'] === 'admin' ? ['all'] : ['read']
+                    ]
+                ];
+                
+                $this->api->respond($response);
+            } else {
+                $this->api->respond_error('Invalid email or password', 401);
+            }
+            
+        } catch (Exception $e) {
+            $this->api->respond_error('Login failed: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    /**
+     * Register endpoint
+     * POST /api/auth/register
+     */
+    public function register() {
+        $this->api->require_method('POST');
+        
+        try {
+            $input = $this->api->body();
+            
+            // Validate required fields
+            $required = ['email', 'password', 'fullname'];
+            foreach ($required as $field) {
+                if (empty($input[$field])) {
+                    $this->api->respond_error("Field '{$field}' is required", 400);
+                    return;
                 }
-            } catch (PDOException $e) {
-                // Log the error and return database connection error
-                error_log("Database query error: " . $e->getMessage());
-                $this->api->respond_error('Database connection failed. Please contact support.', 500);
+            }
+            
+            // Validate email format
+            if (!filter_var($input['email'], FILTER_VALIDATE_EMAIL)) {
+                $this->api->respond_error('Invalid email format', 400);
                 return;
             }
             
-            // If we reach here, no valid credentials found
-            $this->api->respond_error('Invalid email or password', 401);
+            $success = $this->lauth->register([
+                'email' => $input['email'],
+                'password' => $input['password'],
+                'fullname' => $input['fullname'],
+                'phone' => $input['phone'] ?? '',
+                'role' => $input['role'] ?? 'user'
+            ]);
+            
+            if ($success) {
+                $this->api->respond([
+                    'success' => true,
+                    'message' => 'Registration successful. You can now login.'
+                ], 201);
+            } else {
+                $this->api->respond_error('Registration failed. Email may already exist.', 400);
+            }
             
         } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), 500);
+            $this->api->respond_error('Registration failed: ' . $e->getMessage(), 500);
         }
     }
     
@@ -100,8 +123,7 @@ class AuthController extends ApiController {
         $this->api->require_method('POST');
         
         try {
-            // In a real application, you'd invalidate the token here
-            // For now, just return success
+            $this->lauth->logout();
             
             $this->api->respond([
                 'success' => true,
@@ -109,7 +131,7 @@ class AuthController extends ApiController {
             ]);
             
         } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), 500);
+            $this->api->respond_error('Logout failed: ' . $e->getMessage(), 500);
         }
     }
     
@@ -121,40 +143,97 @@ class AuthController extends ApiController {
         $this->api->require_method('GET');
         
         try {
-            // Get authorization header
-            $headers = getallheaders();
-            $token = null;
-            
-            if (isset($headers['Authorization'])) {
-                $auth = $headers['Authorization'];
-                if (strpos($auth, 'Bearer ') === 0) {
-                    $token = substr($auth, 7);
-                }
-            }
-            
-            if (!$token) {
-                $this->api->respond_error('No token provided', 401);
-                return;
-            }
-            
-            // For demo purposes, accept any valid-looking token
-            if ($token === 'demo_token' || strpos($token, ':') !== false) {
+            // Check if user is logged in via session
+            if ($this->lauth->is_logged_in()) {
+                $user = $this->lauth->user();
+                
                 $this->api->respond([
                     'success' => true,
                     'user' => [
-                        'id' => 1,
-                        'email' => 'admin@vehiclerental.com',
-                        'name' => 'Admin User',
-                        'role' => 'admin',
-                        'permissions' => ['all']
+                        'id' => $user['id'],
+                        'email' => $user['email'],
+                        'name' => $user['fullname'],
+                        'role' => $user['role'],
+                        'permissions' => $user['role'] === 'admin' ? ['all'] : ['read']
                     ]
                 ]);
             } else {
-                $this->api->respond_error('Invalid token', 401);
+                // Check for Bearer token in headers
+                $headers = getallheaders();
+                $token = null;
+                
+                if (isset($headers['Authorization'])) {
+                    $auth = $headers['Authorization'];
+                    if (strpos($auth, 'Bearer ') === 0) {
+                        $token = substr($auth, 7);
+                    }
+                }
+                
+                if ($token && $this->lauth->validate_token($token)) {
+                    $user = $this->lauth->user();
+                    
+                    $this->api->respond([
+                        'success' => true,
+                        'user' => [
+                            'id' => $user['id'],
+                            'email' => $user['email'],
+                            'name' => $user['fullname'],
+                            'role' => $user['role'],
+                            'permissions' => $user['role'] === 'admin' ? ['all'] : ['read']
+                        ]
+                    ]);
+                } else {
+                    $this->api->respond_error('Not authenticated', 401);
+                }
             }
             
         } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), 500);
+            $this->api->respond_error('Authentication check failed: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    /**
+     * Change password
+     * POST /api/auth/change-password
+     */
+    public function changePassword() {
+        $this->api->require_method('POST');
+        
+        try {
+            // Require authentication
+            if (!$this->lauth->is_logged_in()) {
+                $this->api->respond_error('Not authenticated', 401);
+                return;
+            }
+            
+            $input = $this->api->body();
+            
+            // Validate required fields
+            if (empty($input['current_password']) || empty($input['new_password'])) {
+                $this->api->respond_error('Current password and new password are required', 400);
+                return;
+            }
+            
+            $user_id = $this->lauth->user_id();
+            
+            // Verify current password
+            if (!$this->lauth->verify_password($user_id, $input['current_password'])) {
+                $this->api->respond_error('Current password is incorrect', 400);
+                return;
+            }
+            
+            // Update password
+            if ($this->lauth->update_password($user_id, $input['new_password'])) {
+                $this->api->respond([
+                    'success' => true,
+                    'message' => 'Password changed successfully'
+                ]);
+            } else {
+                $this->api->respond_error('Failed to update password', 500);
+            }
+            
+        } catch (Exception $e) {
+            $this->api->respond_error('Password change failed: ' . $e->getMessage(), 500);
         }
     }
     

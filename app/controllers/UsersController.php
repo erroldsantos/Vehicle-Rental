@@ -5,12 +5,10 @@ require_once APP_DIR . 'controllers/ApiController.php';
 
 class UsersController extends ApiController {
     
-    protected $pdo;
-    
     public function __construct() {
         parent::__construct();
-        // Get PDO connection from Database helper for backward compatibility
-        $this->pdo = $this->db->getConnection();
+        // Load the User model (ORM-based)
+        $this->call->model('User');
     }
     
     /**
@@ -27,35 +25,18 @@ class UsersController extends ApiController {
                 'search' => $_GET['search'] ?? null
             ];
             
-            $query = "SELECT id, first_name, last_name, email, phone, role, status FROM users WHERE deleted_at IS NULL";
-            $params = [];
+            // Use ORM-based User model
+            $users = $this->User->getAllUsers($filters);
             
-            if (!empty($filters['status'])) {
-                $query .= " AND status = ?";
-                $params[] = $filters['status'];
+            // Convert objects to arrays for consistent JSON output
+            if (!empty($users)) {
+                $users = array_map(function($user) {
+                    return is_object($user) ? (array)$user : $user;
+                }, $users);
             }
-            
-            if (!empty($filters['role'])) {
-                $query .= " AND role = ?";
-                $params[] = $filters['role'];
-            }
-            
-            if (!empty($filters['search'])) {
-                $query .= " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)";
-                $search = '%' . $filters['search'] . '%';
-                $params[] = $search;
-                $params[] = $search;
-                $params[] = $search;
-            }
-            
-            $query .= " ORDER BY first_name, last_name";
-            
-            $stmt = $this->pdo->prepare($query);
-            $stmt->execute($params);
-            $users = $stmt->fetchAll();
             
             // Get statistics
-            $stats = $this->getUserStats();
+            $stats = $this->User->getUserStats();
             
             $this->api->respond([
                 'users' => $users,
@@ -80,14 +61,16 @@ class UsersController extends ApiController {
                 return;
             }
             
-            $stmt = $this->pdo->prepare("SELECT id, first_name, last_name, email, phone, role, status FROM users WHERE id = ? AND deleted_at IS NULL");
-            $stmt->execute([$id]);
-            $user = $stmt->fetch();
+            // Use ORM to find user
+            $user = $this->User->getUserById($id);
             
             if (!$user) {
                 $this->api->respond_error('User not found', 404);
                 return;
             }
+            
+            // Convert object to array if needed
+            $user = is_object($user) ? (array)$user : $user;
             
             $this->api->respond($user);
             
@@ -111,77 +94,19 @@ class UsersController extends ApiController {
                 return;
             }
             
-            // Validate required fields
-            $required = ['first_name', 'last_name', 'email', 'password'];
-            foreach ($required as $field) {
-                if (empty($input[$field])) {
-                    $this->api->respond_error("Field '$field' is required", 400);
-                    return;
-                }
-            }
-            
-            // Validate email format
-            if (!filter_var($input['email'], FILTER_VALIDATE_EMAIL)) {
-                $this->api->respond_error('Invalid email format', 400);
-                return;
-            }
-            
-            // Check if email already exists
-            $stmt = $this->pdo->prepare("SELECT id FROM users WHERE email = ? AND deleted_at IS NULL");
-            $stmt->execute([$input['email']]);
-            if ($stmt->fetch()) {
-                $this->api->respond_error('Email already exists', 400);
-                return;
-            }
-            
-            // Validate password length
-            if (strlen($input['password']) < 6) {
-                $this->api->respond_error('Password must be at least 6 characters long', 400);
-                return;
-            }
-            
-            // Hash password
-            $hashedPassword = password_hash($input['password'], PASSWORD_DEFAULT);
-            
-            // Set defaults
-            $role = $input['role'] ?? 'user';
-            $status = $input['status'] ?? 'active';
-            $phone = $input['phone'] ?? null;
-            
-            // Validate role and status
-            if (!in_array($role, ['admin', 'user'])) {
-                $this->api->respond_error('Invalid role', 400);
-                return;
-            }
-            
-            if (!in_array($status, ['active', 'inactive', 'suspended'])) {
-                $this->api->respond_error('Invalid status', 400);
-                return;
-            }
-            
-            // Insert user
-            $stmt = $this->pdo->prepare("INSERT INTO users (first_name, last_name, email, phone, password, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([
-                $input['first_name'],
-                $input['last_name'],
-                $input['email'],
-                $phone,
-                $hashedPassword,
-                $role,
-                $status
-            ]);
-            
-            $userId = $this->pdo->lastInsertId();
+            // Use ORM model to create user (includes validation)
+            $this->User->createUser($input);
+            $userId = $this->db->last_id();
             
             // Fetch and return the created user
-            $stmt = $this->pdo->prepare("SELECT id, first_name, last_name, email, phone, role, status FROM users WHERE id = ?");
-            $stmt->execute([$userId]);
-            $user = $stmt->fetch();
+            $user = $this->User->getUserById($userId);
+            $user = is_object($user) ? (array)$user : $user;
             
             $this->api->respond($user, 201);
             
         } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), 500);
+            // Model throws exceptions with validation errors
+            $this->api->respond_error($e->getMessage(), 400);
         }
     }
     
@@ -205,84 +130,22 @@ class UsersController extends ApiController {
                 return;
             }
             
-            // Check if user exists
-            $stmt = $this->pdo->prepare("SELECT id FROM users WHERE id = ? AND deleted_at IS NULL");
-            $stmt->execute([$id]);
-            if (!$stmt->fetch()) {
-                $this->api->respond_error('User not found', 404);
-                return;
-            }
-            
-            // Validate email if provided
-            if (!empty($input['email'])) {
-                if (!filter_var($input['email'], FILTER_VALIDATE_EMAIL)) {
-                    $this->api->respond_error('Invalid email format', 400);
-                    return;
-                }
-                
-                // Check if email is taken by another user
-                $stmt = $this->pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ? AND deleted_at IS NULL");
-                $stmt->execute([$input['email'], $id]);
-                if ($stmt->fetch()) {
-                    $this->api->respond_error('Email already exists', 400);
-                    return;
-                }
-            }
-            
-            // Validate role and status if provided
-            if (!empty($input['role']) && !in_array($input['role'], ['admin', 'user'])) {
-                $this->api->respond_error('Invalid role', 400);
-                return;
-            }
-            
-            if (!empty($input['status']) && !in_array($input['status'], ['active', 'inactive', 'suspended'])) {
-                $this->api->respond_error('Invalid status', 400);
-                return;
-            }
-            
-            // Build update query
-            $updateFields = [];
-            $params = [];
-            
-            $allowedFields = ['first_name', 'last_name', 'email', 'phone', 'role', 'status'];
-            
-            foreach ($allowedFields as $field) {
-                if (isset($input[$field])) {
-                    $updateFields[] = "$field = ?";
-                    $params[] = $input[$field];
-                }
-            }
-            
-            // Handle password update separately
-            if (!empty($input['password'])) {
-                if (strlen($input['password']) < 6) {
-                    $this->api->respond_error('Password must be at least 6 characters long', 400);
-                    return;
-                }
-                $updateFields[] = "password = ?";
-                $params[] = password_hash($input['password'], PASSWORD_DEFAULT);
-            }
-            
-            if (empty($updateFields)) {
-                $this->api->respond_error('No valid fields to update', 400);
-                return;
-            }
-            
-            $params[] = $id;
-            $query = "UPDATE users SET " . implode(', ', $updateFields) . " WHERE id = ?";
-            
-            $stmt = $this->pdo->prepare($query);
-            $stmt->execute($params);
+            // Use ORM model to update user (includes validation)
+            $this->User->updateUser($id, $input);
             
             // Fetch and return the updated user
-            $stmt = $this->pdo->prepare("SELECT id, first_name, last_name, email, phone, role, status FROM users WHERE id = ?");
-            $stmt->execute([$id]);
-            $user = $stmt->fetch();
+            $user = $this->User->getUserById($id);
+            $user = is_object($user) ? (array)$user : $user;
             
             $this->api->respond($user);
             
         } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), 500);
+            // Handle different error types
+            if (strpos($e->getMessage(), 'not found') !== false) {
+                $this->api->respond_error($e->getMessage(), 404);
+            } else {
+                $this->api->respond_error($e->getMessage(), 400);
+            }
         }
     }
     
@@ -299,22 +162,17 @@ class UsersController extends ApiController {
                 return;
             }
             
-            // Check if user exists
-            $stmt = $this->pdo->prepare("SELECT id FROM users WHERE id = ? AND deleted_at IS NULL");
-            $stmt->execute([$id]);
-            if (!$stmt->fetch()) {
-                $this->api->respond_error('User not found', 404);
-                return;
-            }
-            
-            // Soft delete
-            $stmt = $this->pdo->prepare("UPDATE users SET deleted_at = NOW() WHERE id = ?");
-            $stmt->execute([$id]);
+            // Use ORM model to soft delete user
+            $this->User->deleteUser($id);
             
             $this->api->respond(['message' => 'User deleted successfully']);
             
         } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), 500);
+            if (strpos($e->getMessage(), 'not found') !== false) {
+                $this->api->respond_error($e->getMessage(), 404);
+            } else {
+                $this->api->respond_error($e->getMessage(), 500);
+            }
         }
     }
     
@@ -333,31 +191,26 @@ class UsersController extends ApiController {
                 return;
             }
             
-            // Get user by email
-            $stmt = $this->pdo->prepare("SELECT id, first_name, last_name, email, phone, password, role, status FROM users WHERE email = ? AND deleted_at IS NULL");
-            $stmt->execute([$input['email']]);
-            $user = $stmt->fetch();
+            // Use ORM model to authenticate
+            $user = $this->User->authenticateUser($input['email'], $input['password']);
             
             if (!$user) {
                 $this->api->respond_error('Invalid email or password', 401);
                 return;
             }
             
-            if ($user['status'] !== 'active') {
-                $this->api->respond_error('Account is not active', 403);
-                return;
-            }
+            // Convert object to array if needed
+            $user = is_object($user) ? (array)$user : $user;
             
-            if (password_verify($input['password'], $user['password'])) {
-                // Remove password from returned data
-                unset($user['password']);
-                $this->api->respond(['user' => $user, 'message' => 'Login successful']);
-            } else {
-                $this->api->respond_error('Invalid email or password', 401);
-            }
+            $this->api->respond(['user' => $user, 'message' => 'Login successful']);
             
         } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), 500);
+            // Handle specific error messages (like account not active)
+            if (strpos($e->getMessage(), 'not active') !== false) {
+                $this->api->respond_error($e->getMessage(), 403);
+            } else {
+                $this->api->respond_error($e->getMessage(), 500);
+            }
         }
     }
     
@@ -371,62 +224,22 @@ class UsersController extends ApiController {
         try {
             $input = $this->api->get_input();
             
-            // Validate required fields
-            $required = ['first_name', 'last_name', 'email', 'password'];
-            foreach ($required as $field) {
-                if (empty($input[$field])) {
-                    $this->api->respond_error("Field '$field' is required", 400);
-                    return;
-                }
-            }
+            // Force role to 'user' for registration
+            $input['role'] = 'user';
+            $input['status'] = 'active';
             
-            // Validate email format
-            if (!filter_var($input['email'], FILTER_VALIDATE_EMAIL)) {
-                $this->api->respond_error('Invalid email format', 400);
-                return;
-            }
-            
-            // Validate password length
-            if (strlen($input['password']) < 6) {
-                $this->api->respond_error('Password must be at least 6 characters long', 400);
-                return;
-            }
-            
-            // Check if email already exists
-            $stmt = $this->pdo->prepare("SELECT id FROM users WHERE email = ? AND deleted_at IS NULL");
-            $stmt->execute([$input['email']]);
-            if ($stmt->fetch()) {
-                $this->api->respond_error('Email already exists', 409);
-                return;
-            }
-            
-            // Hash password
-            $hashedPassword = password_hash($input['password'], PASSWORD_DEFAULT);
-            
-            // Insert new user - always as 'user' role for registration
-            $stmt = $this->pdo->prepare("
-                INSERT INTO users (first_name, last_name, email, phone, address, password, role, status) 
-                VALUES (?, ?, ?, ?, ?, ?, 'user', 'active')
-            ");
-            
-            $stmt->execute([
-                $input['first_name'],
-                $input['last_name'],
-                $input['email'],
-                $input['phone'] ?? null,
-                $input['address'] ?? null,
-                $hashedPassword
-            ]);
-            
-            $userId = $this->pdo->lastInsertId();
+            // Use ORM model to create user (includes validation)
+            $this->User->createUser($input);
+            $userId = $this->db->last_id();
             
             // Get the created user (without password)
-            $stmt = $this->pdo->prepare("
-                SELECT id, first_name, last_name, email, phone, address, role, status, created_at 
-                FROM users WHERE id = ?
-            ");
-            $stmt->execute([$userId]);
-            $user = $stmt->fetch();
+            $user = $this->User->getUserById($userId);
+            $user = is_object($user) ? (array)$user : $user;
+            
+            // Remove password from output (just in case)
+            if (isset($user['password'])) {
+                unset($user['password']);
+            }
             
             $this->api->respond([
                 'message' => 'User registered successfully',
@@ -434,41 +247,9 @@ class UsersController extends ApiController {
             ], 201);
             
         } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), 500);
+            // Model throws exceptions with validation errors
+            $this->api->respond_error($e->getMessage(), 400);
         }
-    }
-    
-    /**
-     * Get user statistics
-     */
-    private function getUserStats() {
-        $stats = [];
-        
-        // Total users
-        $stmt = $this->pdo->query("SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL");
-        $stats['total_users'] = $stmt->fetchColumn();
-        
-        // Active users
-        $stmt = $this->pdo->query("SELECT COUNT(*) as count FROM users WHERE status = 'active' AND deleted_at IS NULL");
-        $stats['active_users'] = $stmt->fetchColumn();
-        
-        // Inactive users
-        $stmt = $this->pdo->query("SELECT COUNT(*) as count FROM users WHERE status = 'inactive' AND deleted_at IS NULL");
-        $stats['inactive_users'] = $stmt->fetchColumn();
-        
-        // Suspended users
-        $stmt = $this->pdo->query("SELECT COUNT(*) as count FROM users WHERE status = 'suspended' AND deleted_at IS NULL");
-        $stats['suspended_users'] = $stmt->fetchColumn();
-        
-        // Admins
-        $stmt = $this->pdo->query("SELECT COUNT(*) as count FROM users WHERE role = 'admin' AND deleted_at IS NULL");
-        $stats['admin_users'] = $stmt->fetchColumn();
-        
-        // Regular users
-        $stmt = $this->pdo->query("SELECT COUNT(*) as count FROM users WHERE role = 'user' AND deleted_at IS NULL");
-        $stats['regular_users'] = $stmt->fetchColumn();
-        
-        return $stats;
     }
 }
 ?>

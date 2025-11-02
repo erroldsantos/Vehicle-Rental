@@ -5,7 +5,13 @@ require_once APP_DIR . 'controllers/ApiController.php';
 
 class AdminController extends ApiController {
     
-    // Constructor inherited from ApiController - has $this->db and $this->api
+    public function __construct() {
+        parent::__construct();
+        $this->call->model('User');
+        $this->call->model('Vehicle');
+        $this->call->model('Booking');
+        $this->call->model('Maintenance');
+    }
     
     /**
      * Dashboard statistics endpoint
@@ -13,17 +19,19 @@ class AdminController extends ApiController {
     public function stats() {
         $this->api->require_method('GET');
         
-        // Sample statistics - replace with actual database queries
-        $stats = [
-            'users' => $this->getUserCount(),
-            'items' => $this->getItemCount(),
-            'orders' => $this->getOrderCount(),
-            'revenue' => $this->getRevenue(),
-            'growth' => $this->getGrowthData(),
-            'recent_activity' => $this->getRecentActivity()
-        ];
-        
-        $this->api->respond($stats);
+        try {
+            $stats = [
+                'users' => $this->User->getUserStats(),
+                'vehicles' => $this->Vehicle->getVehicleStats(),
+                'bookings' => $this->Booking->getBookingStats(),
+                'maintenance' => $this->Maintenance->getMaintenanceStats(),
+                'recent_activity' => $this->getRecentActivity()
+            ];
+            
+            $this->api->respond($stats);
+        } catch (Exception $e) {
+            $this->api->respond_error('Failed to load dashboard stats: ' . $e->getMessage(), 500);
+        }
     }
     
     /**
@@ -32,60 +40,28 @@ class AdminController extends ApiController {
     public function users() {
         $this->api->require_method('GET');
         
-        $page = $this->api->get_query_params()['page'] ?? 1;
-        $limit = $this->api->get_query_params()['limit'] ?? 10;
-        
-        // Sample user data - replace with database queries
-        $users = [
-            [
-                'id' => 1,
-                'name' => 'John Doe',
-                'email' => 'john@example.com',
-                'role' => 'admin',
-                'status' => 'active',
-                'created_at' => '2023-01-15 10:30:00',
-                'last_login' => '2023-10-20 14:25:00'
-            ],
-            [
-                'id' => 2,
-                'name' => 'Jane Smith',
-                'email' => 'jane@example.com',
-                'role' => 'user',
-                'status' => 'active',
-                'created_at' => '2023-02-20 09:15:00',
-                'last_login' => '2023-10-19 16:45:00'
-            ],
-            [
-                'id' => 3,
-                'name' => 'Bob Johnson',
-                'email' => 'bob@example.com',
-                'role' => 'moderator',
-                'status' => 'inactive',
-                'created_at' => '2023-03-10 11:20:00',
-                'last_login' => '2023-10-18 08:30:00'
-            ],
-            [
-                'id' => 4,
-                'name' => 'Alice Brown',
-                'email' => 'alice@example.com',
-                'role' => 'user',
-                'status' => 'active',
-                'created_at' => '2023-04-05 13:45:00',
-                'last_login' => '2023-10-21 10:15:00'
-            ]
-        ];
-        
-        $response = [
-            'users' => $users,
-            'pagination' => [
-                'page' => $page,
-                'limit' => $limit,
-                'total' => count($users),
-                'pages' => 1
-            ]
-        ];
-        
-        $this->api->respond($response);
+        try {
+            $filters = [];
+            if (isset($_GET['search'])) {
+                $filters['search'] = $_GET['search'];
+            }
+            if (isset($_GET['role'])) {
+                $filters['role'] = $_GET['role'];
+            }
+            
+            $users = $this->User->getAllUsers($filters);
+            $stats = $this->User->getUserStats();
+            
+            $response = [
+                'users' => $users,
+                'stats' => $stats,
+                'total' => count($users)
+            ];
+            
+            $this->api->respond($response);
+        } catch (Exception $e) {
+            $this->api->respond_error('Failed to load users: ' . $e->getMessage(), 500);
+        }
     }
     
     /**
@@ -195,30 +171,48 @@ class AdminController extends ApiController {
     public function analytics() {
         $this->api->require_method('GET');
         
-        $type = $this->api->get_query_params()['type'] ?? 'overview';
-        
-        $analytics = [
-            'user_growth' => [
-                'labels' => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                'data' => [12, 19, 15, 25, 22, 30]
-            ],
-            'item_statistics' => [
-                'labels' => ['Active Items', 'Inactive Items', 'Pending Items'],
-                'data' => [65, 25, 10]
-            ],
-            'revenue_trend' => [
-                'labels' => ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-                'data' => [1200, 1500, 1800, 2100]
-            ],
-            'page_views' => [
-                'today' => 245,
-                'yesterday' => 198,
-                'this_week' => 1423,
-                'this_month' => 6789
-            ]
-        ];
-        
-        $this->api->respond($analytics);
+        try {
+            $bookingStats = $this->Booking->getBookingStats();
+            $vehicleStats = $this->Vehicle->getVehicleStats();
+            $maintenanceStats = $this->Maintenance->getMaintenanceStats();
+            
+            $analytics = [
+                'booking_status' => [
+                    'labels' => ['Pending', 'Confirmed', 'Completed', 'Cancelled'],
+                    'data' => [
+                        $bookingStats['pending_bookings'],
+                        $bookingStats['confirmed_bookings'],
+                        $bookingStats['completed_bookings'],
+                        $bookingStats['cancelled_bookings']
+                    ]
+                ],
+                'vehicle_status' => [
+                    'labels' => ['Available', 'Rented', 'Maintenance'],
+                    'data' => [
+                        $vehicleStats['available_vehicles'],
+                        $vehicleStats['rented_vehicles'],
+                        $vehicleStats['maintenance_vehicles']
+                    ]
+                ],
+                'maintenance_status' => [
+                    'labels' => ['Scheduled', 'In Progress', 'Completed'],
+                    'data' => [
+                        $maintenanceStats['scheduled_maintenance'],
+                        $maintenanceStats['inprogress_maintenance'],
+                        $maintenanceStats['completed_maintenance']
+                    ]
+                ],
+                'revenue' => [
+                    'total_revenue' => $bookingStats['total_revenue'],
+                    'monthly_bookings' => $bookingStats['monthly_bookings'],
+                    'total_maintenance_cost' => $maintenanceStats['total_cost']
+                ]
+            ];
+            
+            $this->api->respond($analytics);
+        } catch (Exception $e) {
+            $this->api->respond_error('Failed to load analytics: ' . $e->getMessage(), 500);
+        }
     }
     
     /**
@@ -276,103 +270,120 @@ class AdminController extends ApiController {
     public function overview() {
         $this->api->require_method('GET');
         
-        $overview = [
-            'stats' => [
-                'users' => $this->getUserCount(),
-                'items' => $this->getItemCount(),
-                'orders' => $this->getOrderCount(),
-                'revenue' => $this->getRevenue()
-            ],
-            'recent_activity' => $this->getRecentActivity(),
-            'alerts' => $this->getSystemAlerts(),
-            'quick_stats' => [
-                'online_users' => 12,
-                'pending_orders' => 5,
-                'low_stock_items' => 3,
-                'unread_messages' => 8
-            ]
-        ];
-        
-        $this->api->respond($overview);
+        try {
+            $userStats = $this->User->getUserStats();
+            $vehicleStats = $this->Vehicle->getVehicleStats();
+            $bookingStats = $this->Booking->getBookingStats();
+            $maintenanceStats = $this->Maintenance->getMaintenanceStats();
+            
+            $overview = [
+                'stats' => [
+                    'total_users' => $userStats['total_users'],
+                    'total_vehicles' => $vehicleStats['total_vehicles'],
+                    'total_bookings' => $bookingStats['total_bookings'],
+                    'total_revenue' => $bookingStats['total_revenue']
+                ],
+                'recent_activity' => $this->getRecentActivity(),
+                'alerts' => $this->getSystemAlerts(),
+                'quick_stats' => [
+                    'available_vehicles' => $vehicleStats['available_vehicles'],
+                    'pending_bookings' => $bookingStats['pending_bookings'],
+                    'vehicles_in_maintenance' => $vehicleStats['maintenance_vehicles'],
+                    'scheduled_maintenance' => $maintenanceStats['scheduled_maintenance']
+                ],
+                'user_stats' => $userStats,
+                'vehicle_stats' => $vehicleStats,
+                'booking_stats' => $bookingStats,
+                'maintenance_stats' => $maintenanceStats
+            ];
+            
+            $this->api->respond($overview);
+        } catch (Exception $e) {
+            $this->api->respond_error('Failed to load dashboard overview: ' . $e->getMessage(), 500);
+        }
     }
     
     // Helper Methods
-    private function getUserCount() {
-        // Replace with actual database query
-        // Example: return $this->db->table('users')->count();
-        return 125;
-    }
-    
-    private function getItemCount() {
-        // Replace with actual database query
-        return 89;
-    }
-    
-    private function getOrderCount() {
-        // Replace with actual database query
-        return 45;
-    }
-    
-    private function getRevenue() {
-        // Replace with actual database query
-        return 12500;
-    }
-    
-    private function getGrowthData() {
-        return [
-            'users_this_month' => 15,
-            'users_last_month' => 12,
-            'items_this_month' => 8,
-            'items_last_month' => 6
-        ];
-    }
-    
     private function getRecentActivity() {
-        return [
-            [
-                'id' => 1,
-                'action' => 'User registered',
-                'user' => 'John Doe',
-                'time' => '2 minutes ago',
-                'status' => 'active'
-            ],
-            [
-                'id' => 2,
-                'action' => 'Item created',
-                'user' => 'Admin',
-                'time' => '5 minutes ago',
-                'status' => 'active'
-            ],
-            [
-                'id' => 3,
-                'action' => 'User login',
-                'user' => 'Jane Smith',
-                'time' => '10 minutes ago',
-                'status' => 'active'
-            ],
-            [
-                'id' => 4,
-                'action' => 'Item deleted',
-                'user' => 'Admin',
-                'time' => '15 minutes ago',
-                'status' => 'inactive'
-            ]
-        ];
+        try {
+            // Get recent bookings with user and vehicle info
+            $query = "SELECT 
+                        b.id,
+                        b.booking_reference,
+                        b.status,
+                        b.created_at,
+                        u.fullname as user_name,
+                        CONCAT(v.brand, ' ', v.model) as vehicle_name
+                      FROM bookings b
+                      LEFT JOIN users u ON b.user_id = u.id
+                      LEFT JOIN vehicles v ON b.vehicle_id = v.id
+                      WHERE b.deleted_at IS NULL
+                      ORDER BY b.created_at DESC
+                      LIMIT 10";
+            
+            $stmt = $this->db->raw($query);
+            $bookings = $stmt->fetchAll();
+            
+            $activities = [];
+            foreach ($bookings as $booking) {
+                $activities[] = [
+                    'id' => $booking['id'],
+                    'action' => 'Booking ' . ucfirst($booking['status']),
+                    'user' => $booking['user_name'],
+                    'description' => $booking['vehicle_name'] . ' - ' . $booking['booking_reference'],
+                    'time' => $booking['created_at'],
+                    'status' => $booking['status']
+                ];
+            }
+            
+            return $activities;
+        } catch (Exception $e) {
+            return [];
+        }
     }
     
     private function getSystemAlerts() {
-        return [
-            [
-                'type' => 'warning',
-                'message' => 'System backup is overdue',
-                'created_at' => '2023-10-21 09:00:00'
-            ],
-            [
-                'type' => 'info',
-                'message' => 'New update available',
-                'created_at' => '2023-10-20 15:30:00'
-            ]
-        ];
+        try {
+            $alerts = [];
+            
+            // Check for vehicles in maintenance
+            $maintenanceStats = $this->Maintenance->getMaintenanceStats();
+            if ($maintenanceStats['scheduled_maintenance'] > 0) {
+                $alerts[] = [
+                    'type' => 'info',
+                    'message' => $maintenanceStats['scheduled_maintenance'] . ' vehicle(s) scheduled for maintenance',
+                    'created_at' => date('Y-m-d H:i:s')
+                ];
+            }
+            
+            // Check for pending bookings
+            $bookingStats = $this->Booking->getBookingStats();
+            if ($bookingStats['pending_bookings'] > 0) {
+                $alerts[] = [
+                    'type' => 'warning',
+                    'message' => $bookingStats['pending_bookings'] . ' pending booking(s) require attention',
+                    'created_at' => date('Y-m-d H:i:s')
+                ];
+            }
+            
+            // Check for low vehicle availability
+            $vehicleStats = $this->Vehicle->getVehicleStats();
+            $availabilityRate = ($vehicleStats['total_vehicles'] > 0) 
+                ? ($vehicleStats['available_vehicles'] / $vehicleStats['total_vehicles']) * 100 
+                : 0;
+            
+            if ($availabilityRate < 30) {
+                $alerts[] = [
+                    'type' => 'warning',
+                    'message' => 'Low vehicle availability: ' . round($availabilityRate) . '%',
+                    'created_at' => date('Y-m-d H:i:s')
+                ];
+            }
+            
+            return $alerts;
+        } catch (Exception $e) {
+            return [];
+        }
     }
 }
 ?>
