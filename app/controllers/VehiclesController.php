@@ -5,9 +5,7 @@ class VehiclesController extends Controller {
 
     public function __construct() {
         parent::__construct();
-        // Load the API library
         $this->call->library('api');
-        // Load the Vehicle model (ORM-based)
         $this->call->model('Vehicle');
     }
 

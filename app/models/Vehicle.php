@@ -73,7 +73,7 @@ class Vehicle extends Model {
         // Set default status
         $data['status'] = $data['status'] ?? 'available';
         
-        // Use ORM insert
+        // insert
         return $this->insert($data);
     }
     
@@ -109,7 +109,7 @@ class Vehicle extends Model {
             }
         }
         
-        // Use ORM update
+        // Update
         return $this->update($id, $data);
     }
     
@@ -130,7 +130,7 @@ class Vehicle extends Model {
             throw new Exception("Cannot delete vehicle with active bookings");
         }
         
-        // Use ORM soft delete
+        // soft delete
         return $this->soft_delete($id);
     }
     

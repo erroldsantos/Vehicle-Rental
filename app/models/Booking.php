@@ -5,9 +5,9 @@ class Booking extends Model {
     
     protected $table = 'bookings';
     protected $primary_key = 'id';
-    protected $soft_delete = true; // Enable soft deletes
+    protected $soft_delete = true;
     
-    /**
+    /** 
      * Update expired bookings to completed status
      */
     public function updateExpiredBookings() {
@@ -28,7 +28,6 @@ class Booking extends Model {
      * Update all vehicle statuses based on current bookings
      */
     private function updateAllVehicleStatuses() {
-        // Set all vehicles to available first
         $this->db->raw("UPDATE vehicles SET status = 'available' WHERE status = 'rented' AND deleted_at IS NULL");
         
         // Then set vehicles with active bookings to rented
@@ -54,10 +53,10 @@ class Booking extends Model {
         // First, update any expired bookings to completed status
         $this->updateExpiredBookings();
         
-        $query = "SELECT b.id, b.booking_reference, b.start_date, b.end_date, 
+        $query = "SELECT b.id, b.booking_reference, b.user_id, b.vehicle_id, b.start_date, b.end_date, 
                          b.total_amount, b.status, b.notes, b.pickup_location, b.dropoff_location, b.created_at,
                          u.first_name, u.last_name, u.email,
-                         v.brand, v.model, v.plate_number, v.daily_rate
+                         v.brand, v.model, v.plate_number, v.daily_rate, v.image as vehicle_image
                   FROM bookings b
                   LEFT JOIN users u ON b.user_id = u.id
                   LEFT JOIN vehicles v ON b.vehicle_id = v.id
@@ -203,7 +202,7 @@ class Booking extends Model {
     }
     
     /**
-     * Create new booking using ORM
+     * Create new booking
      */
     public function createBooking($data) {
         // Validate required fields
@@ -226,11 +225,6 @@ class Booking extends Model {
             throw new Exception("Start date cannot be in the past");
         }
         
-        // Check vehicle availability
-        if (!$this->checkVehicleAvailability($data['vehicle_id'], $start_date, $end_date)) {
-            throw new Exception("Vehicle is not available for the selected dates");
-        }
-        
         // Generate booking reference
         $booking_reference = $this->generateBookingReference();
         
@@ -243,7 +237,7 @@ class Booking extends Model {
         $pickup_location = $data['pickup_location'] ?? null;
         $dropoff_location = $data['dropoff_location'] ?? null;
         
-        // Use ORM insert method
+        // insert method
         $this->insert([
             'booking_reference' => $booking_reference,
             'user_id' => $data['user_id'],
@@ -260,8 +254,9 @@ class Booking extends Model {
         // Get the created booking ID
         $booking_id = $this->db->last_id();
         
-        // Update vehicle status if booking is confirmed
+        // If booking is created as confirmed, cancel conflicting bookings
         if ($status === 'confirmed') {
+            $this->cancelConflictingBookings($booking_id, $data['vehicle_id'], $start_date, $end_date);
             $this->updateVehicleStatus($data['vehicle_id'], $start_date, $end_date);
         }
         
@@ -269,7 +264,35 @@ class Booking extends Model {
     }
     
     /**
-     * Update booking using ORM
+     * Cancel conflicting bookings when a booking is confirmed
+     */
+    private function cancelConflictingBookings($booking_id, $vehicle_id, $start_date, $end_date) {
+        // Find all bookings for the same vehicle with overlapping dates
+        $query = "SELECT id FROM bookings 
+                  WHERE id != ? 
+                  AND vehicle_id = ? 
+                  AND status IN ('pending', 'confirmed')
+                  AND deleted_at IS NULL
+                  AND (
+                      (start_date <= ? AND end_date >= ?) OR
+                      (start_date <= ? AND end_date >= ?) OR
+                      (start_date >= ? AND end_date <= ?)
+                  )";
+        
+        $params = [$booking_id, $vehicle_id, $start_date, $start_date, $end_date, $end_date, $start_date, $end_date];
+        $stmt = $this->db->raw($query, $params);
+        $conflicting_bookings = $stmt->fetchAll();
+        
+        // Cancel each conflicting booking
+        foreach ($conflicting_bookings as $conflicting) {
+            $this->update($conflicting['id'], ['status' => 'cancelled']);
+        }
+        
+        return count($conflicting_bookings);
+    }
+    
+    /**
+     * Update booking
      */
     public function updateBooking($id, $data) {
         // Check if booking exists
@@ -279,19 +302,27 @@ class Booking extends Model {
         }
         
         // Validate dates if provided
+        // Only validate against past dates if the booking hasn't started yet
+        $today = date('Y-m-d');
+        $originalStartDate = $booking['start_date'];
+        
+        if (isset($data['start_date'])) {
+            // If original booking hasn't started yet, don't allow past dates
+            if ($originalStartDate >= $today && $data['start_date'] < $today) {
+                throw new Exception("Start date cannot be in the past");
+            }
+        }
+        
+        if (isset($data['end_date'])) {
+            $start_date = $data['start_date'] ?? $booking['start_date'];
+            if ($start_date >= $data['end_date']) {
+                throw new Exception("End date must be after start date");
+            }
+        }
+        
         if (isset($data['start_date']) && isset($data['end_date'])) {
             if ($data['start_date'] >= $data['end_date']) {
                 throw new Exception("End date must be after start date");
-            }
-            
-            if ($data['start_date'] < date('Y-m-d')) {
-                throw new Exception("Start date cannot be in the past");
-            }
-            
-            // Check vehicle availability (excluding current booking)
-            $vehicle_id = $data['vehicle_id'] ?? $booking['vehicle_id'];
-            if (!$this->checkVehicleAvailability($vehicle_id, $data['start_date'], $data['end_date'], $id)) {
-                throw new Exception("Vehicle is not available for the selected dates");
             }
         }
         
@@ -321,6 +352,16 @@ class Booking extends Model {
         // Use ORM update method
         $this->update($id, $updateData);
         
+        // If status is being changed to 'confirmed', cancel conflicting bookings
+        if (isset($data['status']) && $data['status'] === 'confirmed') {
+            $vehicle_id = $data['vehicle_id'] ?? $booking['vehicle_id'];
+            $start_date = $data['start_date'] ?? $booking['start_date'];
+            $end_date = $data['end_date'] ?? $booking['end_date'];
+            
+            // Cancel conflicting bookings for the same vehicle and dates
+            $cancelled_count = $this->cancelConflictingBookings($id, $vehicle_id, $start_date, $end_date);
+        }
+        
         // Update vehicle status if status changed
         if (isset($data['status'])) {
             $vehicle_id = $data['vehicle_id'] ?? $booking['vehicle_id'];
@@ -342,7 +383,7 @@ class Booking extends Model {
             throw new Exception("Booking not found");
         }
         
-        // Update booking status to cancelled using ORM
+        // Update booking status to cancelled
         $this->update($id, ['status' => 'cancelled']);
         
         // Update vehicle status
@@ -352,7 +393,7 @@ class Booking extends Model {
     }
     
     /**
-     * Delete booking using ORM soft delete
+     * Delete booking soft delete
      */
     public function deleteBooking($id) {
         // Check if booking exists
@@ -361,10 +402,8 @@ class Booking extends Model {
             throw new Exception("Booking not found");
         }
         
-        // Use ORM soft delete method
         $this->soft_delete($id);
         
-        // Update vehicle status
         $this->updateVehicleStatus($booking['vehicle_id'], $booking['start_date'], $booking['end_date']);
         
         return true;

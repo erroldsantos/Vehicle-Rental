@@ -476,13 +476,20 @@ export default {
       selectedVehicle.value = vehicle
       showBookingModal.value = true
       
-      // Set default dates
+      // Set default dates - use local date to avoid timezone issues
       const today = new Date()
+      const year = today.getFullYear()
+      const month = String(today.getMonth() + 1).padStart(2, '0')
+      const day = String(today.getDate()).padStart(2, '0')
+      
       const tomorrow = new Date(today)
       tomorrow.setDate(tomorrow.getDate() + 1)
+      const tomorrowYear = tomorrow.getFullYear()
+      const tomorrowMonth = String(tomorrow.getMonth() + 1).padStart(2, '0')
+      const tomorrowDay = String(tomorrow.getDate()).padStart(2, '0')
       
-      bookingForm.value.start_date = today.toISOString().split('T')[0]
-      bookingForm.value.end_date = tomorrow.toISOString().split('T')[0]
+      bookingForm.value.start_date = `${year}-${month}-${day}`
+      bookingForm.value.end_date = `${tomorrowYear}-${tomorrowMonth}-${tomorrowDay}`
     }
 
     const submitBooking = async () => {

@@ -334,7 +334,7 @@ export default {
         bookings.value = bookingsList.map(booking => ({
           ...booking,
           vehicle_name: `${booking.brand || ''} ${booking.model || ''}`.trim() || 'Unknown Vehicle',
-          vehicle_type: booking.type || 'Sedan',
+          vehicle_type: 'Sedan', // Default since v.type column doesn't exist
           vehicle_image: booking.vehicle_image ? `/images/vehicles/${booking.vehicle_image}` : null
         }))
       } catch (error) {

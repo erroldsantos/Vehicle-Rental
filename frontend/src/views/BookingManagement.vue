@@ -91,11 +91,11 @@
           <div class="form-row">
             <div class="form-group">
               <label>Start Date:</label>
-              <input v-model="newBooking.start_date" class="form-control" type="date" required @change="checkAvailability" />
+              <input v-model="newBooking.start_date" class="form-control" type="date" :min="minDate" required @change="checkAvailability" />
             </div>
             <div class="form-group">
               <label>End Date:</label>
-              <input v-model="newBooking.end_date" class="form-control" type="date" required @change="checkAvailability" />
+              <input v-model="newBooking.end_date" class="form-control" type="date" :min="newBooking.start_date || minDate" required @change="checkAvailability" />
             </div>
           </div>
           
@@ -154,11 +154,11 @@
           <div class="form-row">
             <div class="form-group">
               <label>Start Date:</label>
-              <input v-model="editingBooking.start_date" class="form-control" type="date" required />
+              <input v-model="editingBooking.start_date" class="form-control" type="date" :min="minEditStartDate" required />
             </div>
             <div class="form-group">
               <label>End Date:</label>
-              <input v-model="editingBooking.end_date" class="form-control" type="date" required />
+              <input v-model="editingBooking.end_date" class="form-control" type="date" :min="editingBooking.start_date || minEditStartDate" required />
             </div>
           </div>
           
@@ -293,6 +293,27 @@ export default {
     })
     
     // Computed properties
+    const minDate = computed(() => {
+      const today = new Date()
+      return today.toISOString().split('T')[0]
+    })
+    
+    const minEditStartDate = computed(() => {
+      // If editing an existing booking that already has a past start date, allow keeping it
+      if (editingBooking.value.start_date) {
+        const bookingDate = new Date(editingBooking.value.start_date)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        bookingDate.setHours(0, 0, 0, 0)
+        
+        // If booking already started in the past, allow that date as minimum
+        if (bookingDate < today) {
+          return editingBooking.value.start_date
+        }
+      }
+      return minDate.value
+    })
+    
     const isFormValid = computed(() => {
       return newBooking.value.user_id && 
              newBooking.value.vehicle_id && 
@@ -417,18 +438,29 @@ export default {
     
     const editBooking = (booking) => {
       console.log('Edit booking clicked:', booking)
+      console.log('User ID from booking:', booking.user_id)
+      console.log('Vehicle ID from booking:', booking.vehicle_id)
+      
+      // Ensure user_id and vehicle_id are properly set
+      const userId = booking.user_id || null
+      const vehicleId = booking.vehicle_id || null
+      
+      console.log('Setting user_id to:', userId)
+      console.log('Setting vehicle_id to:', vehicleId)
       
       editingBooking.value = {
         id: booking.id,
         booking_reference: booking.booking_reference,
-        user_id: booking.user_id,
-        vehicle_id: booking.vehicle_id,
+        user_id: userId,
+        vehicle_id: vehicleId,
         start_date: booking.start_date,
         end_date: booking.end_date,
         total_amount: booking.total_amount,
         status: booking.status,
         notes: booking.notes || ''
       }
+      
+      console.log('editingBooking.value:', editingBooking.value)
       
       showEditForm.value = true
       showAddForm.value = false
