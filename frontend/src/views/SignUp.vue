@@ -336,8 +336,9 @@ export default {
           role: 'user' // Explicitly set as user role
         })
 
-        if (data.success || data.user) {
-          successMessage.value = 'Account created successfully! Redirecting to login...'
+        // API returns {message: "...", user: {...}}
+        if (data.user || data.message) {
+          successMessage.value = data.message || 'Account created successfully! Redirecting to login...'
           
           // Clear form
           Object.keys(form).forEach(key => {

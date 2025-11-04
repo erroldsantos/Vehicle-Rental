@@ -189,14 +189,14 @@
             </span>
           </span>
           <span class="actions">
-            <button v-if="record.status === 'scheduled'" class="action-btn-sm" @click="completeMaintenance(record)" style="margin-right: 8px;">
-              <i class="fas fa-check"></i> Complete
+            <button v-if="record.status === 'scheduled'" class="action-btn-sm" @click="completeMaintenance(record)" style="margin-right: 8px;" title="Complete">
+              <i class="fas fa-check"></i>
             </button>
-            <button class="action-btn-sm" @click="editMaintenance(record)" style="margin-right: 8px; cursor: pointer;">
-              <i class="fas fa-edit"></i> Edit
+            <button class="action-btn-sm" @click="editMaintenance(record)" style="margin-right: 8px; cursor: pointer;" title="Edit">
+              <i class="fas fa-edit"></i>
             </button>
-            <button class="action-btn-sm danger" @click="deleteMaintenance(record.id)" style="cursor: pointer;">
-              <i class="fas fa-trash"></i> Delete
+            <button class="action-btn-sm danger" @click="deleteMaintenance(record.id)" style="cursor: pointer;" title="Delete">
+              <i class="fas fa-trash"></i>
             </button>
           </span>
         </div>
@@ -306,11 +306,9 @@ export default {
         cancelAdd()
         
         await loadMaintenance()
-        alert('Maintenance scheduled successfully!')
       } catch (error) {
         console.error('Failed to add maintenance:', error)
         console.error('Error details:', error.response || error)
-        alert('Failed to schedule maintenance. Please try again. Check console for details.')
       }
     }
 
@@ -362,12 +360,9 @@ export default {
         
         cancelEdit()
         await loadMaintenance()
-        
-        alert('Maintenance updated successfully!')
       } catch (error) {
         console.error('Failed to update maintenance:', error)
         console.error('Error details:', error.response || error)
-        alert('Failed to update maintenance. Please try again. Check console for details.')
       }
     }
 
@@ -384,64 +379,52 @@ export default {
     }
 
     const completeMaintenance = async (record) => {
-      if (confirm(`Mark maintenance "${record.description}" as completed?`)) {
-        try {
-          console.log('Completing maintenance:', record.id)
-          const response = await apiStore.put(`/maintenance/${record.id}/complete`, { cost: record.cost })
-          console.log('Complete maintenance response:', response)
-          
-          const index = maintenance.value.findIndex(m => m.id === record.id)
-          if (index !== -1) {
-            maintenance.value[index] = response
-          }
-          
-          await loadMaintenance()
-          alert('Maintenance marked as completed!')
-        } catch (error) {
-          console.error('Failed to complete maintenance:', error)
-          alert('Failed to complete maintenance. Please try again.')
+      try {
+        console.log('Completing maintenance:', record.id)
+        const response = await apiStore.put(`/maintenance/${record.id}/complete`, { cost: record.cost })
+        console.log('Complete maintenance response:', response)
+        
+        const index = maintenance.value.findIndex(m => m.id === record.id)
+        if (index !== -1) {
+          maintenance.value[index] = response
         }
+        
+        await loadMaintenance()
+      } catch (error) {
+        console.error('Failed to complete maintenance:', error)
       }
     }
 
     const deleteMaintenance = async (id) => {
       console.log('Delete maintenance clicked for ID:', id)
       
-      if (confirm(`Are you sure you want to delete this maintenance record?`)) {
-        try {
-          console.log('Confirmed - Deleting maintenance with ID:', id)
-          const response = await apiStore.delete(`/maintenance/${id}`)
-          console.log('Delete response received:', response)
-          
-          maintenance.value = maintenance.value.filter(m => m.id !== id)
-          console.log('Updated maintenance list:', maintenance.value)
-          
-          await loadMaintenance()
-          alert('Maintenance record deleted successfully!')
-        } catch (error) {
-          console.error('DELETE ERROR:', error)
-          console.error('Error message:', error.message)
-          console.error('Error response:', error.response)
-          
-          alert(`Failed to delete maintenance record. Error: ${error.message}. Check console for details.`)
-        }
+      try {
+        console.log('Deleting maintenance with ID:', id)
+        const response = await apiStore.delete(`/maintenance/${id}`)
+        console.log('Delete response received:', response)
+        
+        maintenance.value = maintenance.value.filter(m => m.id !== id)
+        console.log('Updated maintenance list:', maintenance.value)
+        
+        await loadMaintenance()
+      } catch (error) {
+        console.error('DELETE ERROR:', error)
+        console.error('Error message:', error.message)
+        console.error('Error response:', error.response)
       }
     }
 
     const syncVehicleStatuses = async () => {
-      if (confirm('This will sync all vehicle statuses with their maintenance schedules. Continue?')) {
-        try {
-          console.log('Syncing vehicle statuses...')
-          const response = await apiStore.post('/maintenance/sync', {})
-          console.log('Sync response:', response)
-          
-          await loadMaintenance()
-          
-          alert(`Sync completed! ${response.vehicles_set_to_maintenance} vehicles set to maintenance, ${response.vehicles_reset_to_available} reset to available.`)
-        } catch (error) {
-          console.error('Sync error:', error)
-          alert('Failed to sync vehicle statuses. Please try again.')
-        }
+      try {
+        console.log('Syncing vehicle statuses...')
+        const response = await apiStore.post('/maintenance/sync', {})
+        console.log('Sync response:', response)
+        
+        await loadMaintenance()
+        
+        console.log(`Sync completed! ${response.vehicles_set_to_maintenance} vehicles set to maintenance, ${response.vehicles_reset_to_available} reset to available.`)
+      } catch (error) {
+        console.error('Sync error:', error)
       }
     }
 

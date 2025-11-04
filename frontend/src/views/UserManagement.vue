@@ -320,7 +320,7 @@ export default {
       } catch (error) {
         console.error('Failed to load users:', error)
         console.error('Error details:', error.response || error)
-        alert('Failed to load users. Check console for details.')
+        
       } finally {
         loading.value = false
       }
@@ -348,7 +348,7 @@ export default {
         cancelAdd()
         
         await loadUsers() // Reload to get updated stats
-        alert('User added successfully!')
+        
         
       } catch (error) {
         console.error('Failed to add user:', error)
@@ -418,7 +418,7 @@ export default {
         
         cancelEdit()
         await loadUsers() // Reload to get updated stats
-        alert('User updated successfully!')
+        
         
       } catch (error) {
         console.error('Failed to update user:', error)
@@ -444,24 +444,20 @@ export default {
     const deleteUser = async (id) => {
       console.log('Delete user clicked for ID:', id)
       
-      if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-        try {
-          console.log('Confirmed - Deleting user with ID:', id)
-          const response = await apiStore.delete(`/users/${id}`)
-          console.log('Delete response received:', response)
-          
-          users.value = users.value.filter(u => u.id !== id)
-          console.log('Updated users list:', users.value)
-          
-          await loadUsers() // Reload to get updated stats
-          alert('User deleted successfully!')
-        } catch (error) {
-          console.error('DELETE ERROR:', error)
-          console.error('Error message:', error.message)
-          console.error('Error response:', error.response)
-          
-          alert(`Failed to delete user. Error: ${error.message}. Check console for details.`)
-        }
+      try {
+        console.log('Deleting user with ID:', id)
+        const response = await apiStore.delete(`/users/${id}`)
+        console.log('Delete response received:', response)
+        
+        users.value = users.value.filter(u => u.id !== id)
+        console.log('Updated users list:', users.value)
+        
+        await loadUsers() // Reload to get updated stats
+        
+      } catch (error) {
+        console.error('DELETE ERROR:', error)
+        console.error('Error message:', error.message)
+        console.error('Error response:', error.response)
       }
     }
     

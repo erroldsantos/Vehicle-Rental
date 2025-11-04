@@ -1,13 +1,11 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-require_once APP_DIR . 'controllers/ApiController.php';
-
-class UsersController extends ApiController {
+class UsersController extends Controller {
     
     public function __construct() {
         parent::__construct();
-        // Load the User model (ORM-based)
+        $this->call->library('api');
         $this->call->model('User');
     }
     
@@ -19,13 +17,14 @@ class UsersController extends ApiController {
         $this->api->require_method('GET');
         
         try {
+            // Get all GET parameters if any exist
+            $getAllParams = !empty($_GET) ? $this->io->get() : [];
             $filters = [
-                'status' => $_GET['status'] ?? null,
-                'role' => $_GET['role'] ?? null,
-                'search' => $_GET['search'] ?? null
+                'status' => isset($getAllParams['status']) ? $getAllParams['status'] : null,
+                'role' => isset($getAllParams['role']) ? $getAllParams['role'] : null,
+                'search' => isset($getAllParams['search']) ? $getAllParams['search'] : null
             ];
-            
-            // Use ORM-based User model
+
             $users = $this->User->getAllUsers($filters);
             
             // Convert objects to arrays for consistent JSON output
@@ -61,7 +60,6 @@ class UsersController extends ApiController {
                 return;
             }
             
-            // Use ORM to find user
             $user = $this->User->getUserById($id);
             
             if (!$user) {
@@ -69,7 +67,6 @@ class UsersController extends ApiController {
                 return;
             }
             
-            // Convert object to array if needed
             $user = is_object($user) ? (array)$user : $user;
             
             $this->api->respond($user);
@@ -87,14 +84,9 @@ class UsersController extends ApiController {
         $this->api->require_method('POST');
         
         try {
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = $this->api->body();
             
-            if (!$input) {
-                $this->api->respond_error('Invalid JSON data', 400);
-                return;
-            }
-            
-            // Use ORM model to create user (includes validation)
+            //create user (includes validation)
             $this->User->createUser($input);
             $userId = $this->db->last_id();
             
@@ -105,7 +97,6 @@ class UsersController extends ApiController {
             $this->api->respond($user, 201);
             
         } catch (Exception $e) {
-            // Model throws exceptions with validation errors
             $this->api->respond_error($e->getMessage(), 400);
         }
     }
@@ -123,14 +114,9 @@ class UsersController extends ApiController {
                 return;
             }
             
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = $this->api->body();
             
-            if (!$input) {
-                $this->api->respond_error('Invalid JSON data', 400);
-                return;
-            }
-            
-            // Use ORM model to update user (includes validation)
+            // Update user (includes validation)
             $this->User->updateUser($id, $input);
             
             // Fetch and return the updated user
@@ -162,7 +148,7 @@ class UsersController extends ApiController {
                 return;
             }
             
-            // Use ORM model to soft delete user
+            // Soft delete user
             $this->User->deleteUser($id);
             
             $this->api->respond(['message' => 'User deleted successfully']);
@@ -184,14 +170,14 @@ class UsersController extends ApiController {
         $this->api->require_method('POST');
         
         try {
-            $input = json_decode(file_get_contents('php://input'), true);
+            $input = $this->api->body();
             
             if (!$input || empty($input['email']) || empty($input['password'])) {
                 $this->api->respond_error('Email and password are required', 400);
                 return;
             }
             
-            // Use ORM model to authenticate
+            // authenticate
             $user = $this->User->authenticateUser($input['email'], $input['password']);
             
             if (!$user) {
@@ -199,7 +185,6 @@ class UsersController extends ApiController {
                 return;
             }
             
-            // Convert object to array if needed
             $user = is_object($user) ? (array)$user : $user;
             
             $this->api->respond(['user' => $user, 'message' => 'Login successful']);
@@ -222,13 +207,13 @@ class UsersController extends ApiController {
         $this->api->require_method('POST');
         
         try {
-            $input = $this->api->get_input();
+            $input = $this->api->body();
             
             // Force role to 'user' for registration
             $input['role'] = 'user';
             $input['status'] = 'active';
-            
-            // Use ORM model to create user (includes validation)
+
+            // Create user (includes validation)
             $this->User->createUser($input);
             $userId = $this->db->last_id();
             

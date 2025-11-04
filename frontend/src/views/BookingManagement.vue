@@ -308,7 +308,7 @@ export default {
           const end = new Date(newBooking.value.end_date)
           const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
           const total = vehicle.daily_rate * days
-          return `$${total.toFixed(2)} (${days} days × $${vehicle.daily_rate}/day)`
+          return `₱${total.toFixed(2)} (${days} days × ₱${vehicle.daily_rate}/day)`
         }
       }
       return 'Select dates and vehicle'
@@ -339,7 +339,6 @@ export default {
       } catch (error) {
         console.error('Failed to load bookings:', error)
         console.error('Error details:', error.response || error)
-        alert('Failed to load bookings. Check console for details.')
       } finally {
         loading.value = false
       }
@@ -398,12 +397,9 @@ export default {
         cancelAdd()
         
         await loadBookings() // Reload to get updated stats
-        alert('Booking created successfully!')
-        
       } catch (error) {
         console.error('Failed to add booking:', error)
         console.error('Error details:', error.response || error)
-        alert(`Failed to create booking. Error: ${error.message}. Check console for details.`)
       }
     }
     
@@ -462,12 +458,9 @@ export default {
         
         cancelEdit()
         await loadBookings() // Reload to get updated stats
-        alert('Booking updated successfully!')
-        
       } catch (error) {
         console.error('Failed to update booking:', error)
         console.error('Error details:', error.response || error)
-        alert(`Failed to update booking. Error: ${error.message}. Check console for details.`)
       }
     }
     
@@ -489,45 +482,35 @@ export default {
     const cancelBooking = async (id) => {
       console.log('Cancel booking clicked for ID:', id)
       
-      if (confirm('Are you sure you want to cancel this booking?')) {
-        try {
-          console.log('Confirmed - Cancelling booking with ID:', id)
-          const response = await apiStore.put(`/bookings/${id}/cancel`, {})
-          console.log('Cancel response received:', response)
-          
-          await loadBookings() // Reload to get updated data
-          alert('Booking cancelled successfully!')
-        } catch (error) {
-          console.error('CANCEL ERROR:', error)
-          console.error('Error message:', error.message)
-          console.error('Error response:', error.response)
-          
-          alert(`Failed to cancel booking. Error: ${error.message}. Check console for details.`)
-        }
+      try {
+        console.log('Cancelling booking with ID:', id)
+        const response = await apiStore.put(`/bookings/${id}/cancel`, {})
+        console.log('Cancel response received:', response)
+        
+        await loadBookings() // Reload to get updated data
+      } catch (error) {
+        console.error('CANCEL ERROR:', error)
+        console.error('Error message:', error.message)
+        console.error('Error response:', error.response)
       }
     }
     
     const deleteBooking = async (id) => {
       console.log('Delete booking clicked for ID:', id)
       
-      if (confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
-        try {
-          console.log('Confirmed - Deleting booking with ID:', id)
-          const response = await apiStore.delete(`/bookings/${id}`)
-          console.log('Delete response received:', response)
-          
-          bookings.value = bookings.value.filter(b => b.id !== id)
-          console.log('Updated bookings list:', bookings.value)
-          
-          await loadBookings() // Reload to get updated stats
-          alert('Booking deleted successfully!')
-        } catch (error) {
-          console.error('DELETE ERROR:', error)
-          console.error('Error message:', error.message)
-          console.error('Error response:', error.response)
-          
-          alert(`Failed to delete booking. Error: ${error.message}. Check console for details.`)
-        }
+      try {
+        console.log('Deleting booking with ID:', id)
+        const response = await apiStore.delete(`/bookings/${id}`)
+        console.log('Delete response received:', response)
+        
+        bookings.value = bookings.value.filter(b => b.id !== id)
+        console.log('Updated bookings list:', bookings.value)
+        
+        await loadBookings() // Reload to get updated stats
+      } catch (error) {
+        console.error('DELETE ERROR:', error)
+        console.error('Error message:', error.message)
+        console.error('Error response:', error.response)
       }
     }
     

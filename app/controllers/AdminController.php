@@ -1,12 +1,11 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-require_once APP_DIR . 'controllers/ApiController.php';
-
-class AdminController extends ApiController {
+class AdminController extends Controller {
     
     public function __construct() {
         parent::__construct();
+        $this->call->library('api');
         $this->call->model('User');
         $this->call->model('Vehicle');
         $this->call->model('Booking');
@@ -41,13 +40,12 @@ class AdminController extends ApiController {
         $this->api->require_method('GET');
         
         try {
-            $filters = [];
-            if (isset($_GET['search'])) {
-                $filters['search'] = $_GET['search'];
-            }
-            if (isset($_GET['role'])) {
-                $filters['role'] = $_GET['role'];
-            }
+            // Get all GET parameters if any exist
+            $getAllParams = !empty($_GET) ? $this->io->get() : [];
+            $filters = [
+                'search' => isset($getAllParams['search']) ? $getAllParams['search'] : null,
+                'role' => isset($getAllParams['role']) ? $getAllParams['role'] : null
+            ];
             
             $users = $this->User->getAllUsers($filters);
             $stats = $this->User->getUserStats();
@@ -125,7 +123,6 @@ class AdminController extends ApiController {
             return;
         }
         
-        // Sample deletion - replace with database deletion
         $this->api->respond(['message' => 'User ' . $id . ' deleted successfully']);
     }
     
@@ -219,11 +216,7 @@ class AdminController extends ApiController {
      * System settings
      */
     public function settings() {
-        if ($this->api->get_query_params() && isset($this->api->get_query_params()['method'])) {
-            $method = $this->api->get_query_params()['method'];
-        } else {
-            $method = $_SERVER['REQUEST_METHOD'];
-        }
+        $method = $this->io->method();
         
         if ($method === 'GET') {
             $settings = [
@@ -239,8 +232,7 @@ class AdminController extends ApiController {
             $this->api->respond($settings);
         } else if ($method === 'POST') {
             $input = $this->api->body();
-            
-            // Sample settings update - replace with actual configuration save
+
             $this->api->respond(['message' => 'Settings updated successfully']);
         }
     }
@@ -303,7 +295,6 @@ class AdminController extends ApiController {
         }
     }
     
-    // Helper Methods
     private function getRecentActivity() {
         try {
             // Get recent bookings with user and vehicle info

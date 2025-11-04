@@ -8,9 +8,52 @@ class Booking extends Model {
     protected $soft_delete = true; // Enable soft deletes
     
     /**
+     * Update expired bookings to completed status
+     */
+    public function updateExpiredBookings() {
+        // Update bookings where end_date has passed and status is still confirmed or pending
+        $query = "UPDATE bookings 
+                  SET status = 'completed' 
+                  WHERE end_date < CURDATE() 
+                  AND status IN ('confirmed', 'pending') 
+                  AND deleted_at IS NULL";
+        
+        $this->db->raw($query);
+        
+        // Also update vehicle status for affected vehicles
+        $this->updateAllVehicleStatuses();
+    }
+    
+    /**
+     * Update all vehicle statuses based on current bookings
+     */
+    private function updateAllVehicleStatuses() {
+        // Set all vehicles to available first
+        $this->db->raw("UPDATE vehicles SET status = 'available' WHERE status = 'rented' AND deleted_at IS NULL");
+        
+        // Then set vehicles with active bookings to rented
+        $query = "UPDATE vehicles v
+                  SET status = 'rented'
+                  WHERE EXISTS (
+                      SELECT 1 FROM bookings b
+                      WHERE b.vehicle_id = v.id
+                      AND b.status = 'confirmed'
+                      AND b.start_date <= CURDATE()
+                      AND b.end_date >= CURDATE()
+                      AND b.deleted_at IS NULL
+                  )
+                  AND v.deleted_at IS NULL";
+        
+        $this->db->raw($query);
+    }
+    
+    /**
      * Get all bookings with user and vehicle details
      */
     public function getAllBookings($filters = []) {
+        // First, update any expired bookings to completed status
+        $this->updateExpiredBookings();
+        
         $query = "SELECT b.id, b.booking_reference, b.start_date, b.end_date, 
                          b.total_amount, b.status, b.notes, b.pickup_location, b.dropoff_location, b.created_at,
                          u.first_name, u.last_name, u.email,
@@ -62,6 +105,9 @@ class Booking extends Model {
      * Get booking by ID with user and vehicle details
      */
     public function getBookingById($id) {
+        // Update expired bookings first
+        $this->updateExpiredBookings();
+        
         $query = "SELECT b.*, 
                          u.first_name, u.last_name, u.email, u.phone,
                          v.brand, v.model, v.plate_number, v.daily_rate

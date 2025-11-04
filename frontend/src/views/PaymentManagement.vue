@@ -265,33 +265,29 @@ export default {
         await refreshData()
       } catch (error) {
         console.error('Error creating payment:', error)
-        alert('Error creating payment. Please try again.')
+        
       } finally {
         createLoading.value = false
       }
     }
 
     const markAsPaid = async (payment) => {
-      if (!confirm('Mark this payment as completed?')) return
-
       try {
         await apiStore.put(`/payments/${payment.id}`, { status: 'completed' })
         await refreshData()
       } catch (error) {
         console.error('Error updating payment:', error)
-        alert('Error updating payment. Please try again.')
+        
       }
     }
 
     const deletePayment = async (payment) => {
-      if (!confirm(`Delete payment for ${getCustomerName(payment)}?`)) return
-
       try {
         await apiStore.delete(`/payments/${payment.id}`)
         await refreshData()
       } catch (error) {
         console.error('Error deleting payment:', error)
-        alert('Error deleting payment. Please try again.')
+        
       }
     }
 
@@ -312,7 +308,7 @@ export default {
     }
 
     const exportReport = () => {
-      alert('Export functionality will be implemented soon.')
+      
     }
 
     // Helper functions

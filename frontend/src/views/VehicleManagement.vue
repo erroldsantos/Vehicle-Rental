@@ -147,11 +147,11 @@
             </span>
           </span>
           <span class="actions">
-            <button class="action-btn-sm" @click="editVehicle(vehicle)" style="margin-right: 8px; cursor: pointer;">
-              <i class="fas fa-edit"></i> Edit
+            <button class="action-btn-sm" @click="editVehicle(vehicle)" style="margin-right: 8px; cursor: pointer;" title="Edit">
+              <i class="fas fa-edit"></i>
             </button>
-            <button class="action-btn-sm danger" @click="deleteVehicle(vehicle.id)" style="cursor: pointer;">
-              <i class="fas fa-trash"></i> Delete
+            <button class="action-btn-sm danger" @click="deleteVehicle(vehicle.id)" style="cursor: pointer;" title="Delete">
+              <i class="fas fa-trash"></i>
             </button>
           </span>
         </div>
@@ -199,8 +199,9 @@ export default {
         const response = await apiStore.get('/vehicles')
         console.log('API Response:', response)
         
-        // Backend returns {data: {vehicles: [...], total: N}}
-        vehicles.value = response.data?.vehicles || []
+        // Backend returns {vehicles: [...], total: N}
+        // Axios wraps it in response.data, so we get response.data.vehicles
+        vehicles.value = response.vehicles || []
         console.log('Loaded vehicles:', vehicles.value)
       } catch (error) {
         console.error('Failed to load vehicles:', error)
@@ -238,7 +239,6 @@ export default {
       } catch (error) {
         console.error('Failed to add vehicle:', error)
         console.error('Error details:', error.response || error)
-        alert('Failed to add vehicle. Please try again. Check console for details.')
       }
     }
 
@@ -298,12 +298,9 @@ export default {
         
         // Refresh the list to make sure we have the latest data
         await loadVehicles()
-        
-        alert('Vehicle updated successfully!')
       } catch (error) {
         console.error('Failed to update vehicle:', error)
         console.error('Error details:', error.response || error)
-        alert('Failed to update vehicle. Please try again. Check console for details.')
       }
     }
 
@@ -323,24 +320,21 @@ export default {
     const deleteVehicle = async (id) => {
       console.log('Delete button clicked for ID:', id)
       
-      if (confirm(`Are you sure you want to delete vehicle with ID ${id}?`)) {
-        try {
-          console.log('Confirmed - Deleting vehicle with ID:', id)
-          console.log('API Store:', apiStore)
-          console.log('Making DELETE request to:', `/vehicles/${id}`)
-          
-          const response = await apiStore.delete(`/vehicles/${id}`)
-          console.log('Delete response received:', response)
-          
-          // Remove from local list
-          vehicles.value = vehicles.value.filter(v => v.id !== id)
-          console.log('Updated vehicles list:', vehicles.value)
+      try {
+        console.log('Deleting vehicle with ID:', id)
+        console.log('API Store:', apiStore)
+        console.log('Making DELETE request to:', `/vehicles/${id}`)
+        
+        const response = await apiStore.delete(`/vehicles/${id}`)
+        console.log('Delete response received:', response)
+        
+        // Remove from local list
+        vehicles.value = vehicles.value.filter(v => v.id !== id)
+        console.log('Updated vehicles list:', vehicles.value)
           
           // Refresh the list to make sure we have the latest data
           console.log('Refreshing vehicle list...')
           await loadVehicles()
-          
-          alert('Vehicle deleted successfully!')
         } catch (error) {
           console.error('DELETE ERROR:', error)
           console.error('Error message:', error.message)
@@ -351,12 +345,7 @@ export default {
             console.error('Response status:', error.response.status)
             console.error('Response data:', error.response.data)
           }
-          
-          alert(`Failed to delete vehicle. Error: ${error.message}. Check console for details.`)
         }
-      } else {
-        console.log('Delete cancelled by user')
-      }
     }
 
     // Helper function to format vehicle display

@@ -1,13 +1,11 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-require_once APP_DIR . 'controllers/ApiController.php';
-
-class BookingsController extends ApiController {
+class BookingsController extends Controller {
     
     public function __construct() {
         parent::__construct();
-        // Load the Booking model (ORM-based)
+        $this->call->library('api');
         $this->call->model('Booking');
     }
     
@@ -19,13 +17,15 @@ class BookingsController extends ApiController {
         $this->api->require_method('GET');
         
         try {
+            // Get all GET parameters if any exist
+            $getAllParams = !empty($_GET) ? $this->io->get() : [];
             $filters = [
-                'status' => $_GET['status'] ?? null,
-                'user_id' => $_GET['user_id'] ?? null,
-                'vehicle_id' => $_GET['vehicle_id'] ?? null,
-                'start_date' => $_GET['start_date'] ?? null,
-                'end_date' => $_GET['end_date'] ?? null,
-                'search' => $_GET['search'] ?? null
+                'status' => isset($getAllParams['status']) ? $getAllParams['status'] : null,
+                'user_id' => isset($getAllParams['user_id']) ? $getAllParams['user_id'] : null,
+                'vehicle_id' => isset($getAllParams['vehicle_id']) ? $getAllParams['vehicle_id'] : null,
+                'start_date' => isset($getAllParams['start_date']) ? $getAllParams['start_date'] : null,
+                'end_date' => isset($getAllParams['end_date']) ? $getAllParams['end_date'] : null,
+                'search' => isset($getAllParams['search']) ? $getAllParams['search'] : null
             ];
             
             $bookings = $this->Booking->getAllBookings($filters);
@@ -62,8 +62,8 @@ class BookingsController extends ApiController {
                 $this->api->respond_error('Booking ID is required', 400);
                 return;
             }
-            
-            // Use ORM to find booking
+
+            // Find booking
             $booking = $this->Booking->getBookingById($id);
             
             if (!$booking) {
@@ -89,12 +89,7 @@ class BookingsController extends ApiController {
         $this->api->require_method('POST');
         
         try {
-            $input = json_decode(file_get_contents('php://input'), true);
-            
-            if (!$input) {
-                $this->api->respond_error('Invalid JSON data', 400);
-                return;
-            }
+            $input = $this->api->body();
             
             // create booking (includes validation)
             $booking_id = $this->Booking->createBooking($input);
@@ -124,12 +119,7 @@ class BookingsController extends ApiController {
                 return;
             }
             
-            $input = json_decode(file_get_contents('php://input'), true);
-            
-            if (!$input) {
-                $this->api->respond_error('Invalid JSON data', 400);
-                return;
-            }
+            $input = $this->api->body();
             
             // update booking (includes validation)
             $this->Booking->updateBooking($id, $input);
@@ -212,8 +202,9 @@ class BookingsController extends ApiController {
         $this->api->require_method('GET');
         
         try {
-            $start_date = $_GET['start_date'] ?? null;
-            $end_date = $_GET['end_date'] ?? null;
+            $getAllParams = !empty($_GET) ? $this->io->get() : [];
+            $start_date = isset($getAllParams['start_date']) ? $getAllParams['start_date'] : null;
+            $end_date = isset($getAllParams['end_date']) ? $getAllParams['end_date'] : null;
             
             if (!$start_date || !$end_date) {
                 $this->api->respond_error('start_date and end_date are required', 400);

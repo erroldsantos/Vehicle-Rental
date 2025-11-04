@@ -339,7 +339,7 @@ export default {
         }))
       } catch (error) {
         console.error('Error loading bookings:', error)
-        alert('Failed to load bookings. Please try again.')
+        
       } finally {
         loading.value = false
       }
@@ -375,17 +375,13 @@ export default {
     }
 
     const cancelBooking = async (booking) => {
-      if (!confirm(`Are you sure you want to cancel booking ${booking.booking_reference}?`)) {
-        return
-      }
-
       try {
         await apiStore.put(`/bookings/${booking.id}`, { status: 'cancelled' })
-        alert('Booking cancelled successfully')
+        
         await loadBookings()
       } catch (error) {
         console.error('Error cancelling booking:', error)
-        alert('Failed to cancel booking. Please try again.')
+        
       }
     }
 
@@ -400,18 +396,14 @@ export default {
     }
 
     const cancelBookingFromModal = async (booking) => {
-      if (!confirm(`Are you sure you want to cancel booking ${booking.booking_reference}?`)) {
-        return
-      }
-
       try {
         await apiStore.put(`/bookings/${booking.id}`, { status: 'cancelled' })
-        alert('Booking cancelled successfully')
+        
         closeDetailsModal()
         await loadBookings()
       } catch (error) {
         console.error('Error cancelling booking:', error)
-        alert('Failed to cancel booking. Please try again.')
+        
       }
     }
 

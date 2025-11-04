@@ -1,12 +1,11 @@
 ﻿<?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-require_once APP_DIR . 'controllers/ApiController.php';
-
-class PaymentController extends ApiController {
+class PaymentController extends Controller {
     
     public function __construct() {
         parent::__construct();
+        $this->call->library('api');
         $this->call->model('Payment');
     }
     
@@ -14,16 +13,13 @@ class PaymentController extends ApiController {
         $this->api->require_method('GET');
         
         try {
-            $filters = [];
-            if (isset($_GET['status'])) {
-                $filters['status'] = $_GET['status'];
-            }
-            if (isset($_GET['booking_id'])) {
-                $filters['booking_id'] = $_GET['booking_id'];
-            }
-            if (isset($_GET['payment_method'])) {
-                $filters['payment_method'] = $_GET['payment_method'];
-            }
+            // Get all GET parameters if any exist
+            $getAllParams = !empty($_GET) ? $this->io->get() : [];
+            $filters = [
+                'status' => isset($getAllParams['status']) ? $getAllParams['status'] : null,
+                'booking_id' => isset($getAllParams['booking_id']) ? $getAllParams['booking_id'] : null,
+                'payment_method' => isset($getAllParams['payment_method']) ? $getAllParams['payment_method'] : null
+            ];
             
             $payments = $this->Payment->getAllPayments($filters);
             $stats = $this->Payment->getPaymentStats();

@@ -1,17 +1,11 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-require_once APP_DIR . 'controllers/ApiController.php';
-
-/**
- * AuthController - User Authentication & Authorization
- * Uses LavaLust's Lauth library and Session management
- * Based on: https://lavalust.netlify.app/example/auth
- */
-class AuthController extends ApiController {
+class AuthController extends Controller {
     
     public function __construct() {
         parent::__construct();
+        $this->call->library('api');
         $this->call->library('lauth');
         $this->call->library('session');
     }
@@ -245,7 +239,8 @@ class AuthController extends ApiController {
         $this->api->require_method('POST');
         
         try {
-            $input = json_decode(file_get_contents('php://input'), true);
+                        // Get request body
+            $input = $this->api->body();
             
             if (!$input || empty($input['email'])) {
                 $this->api->respond_error('Email is required', 400);

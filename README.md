@@ -4,38 +4,7 @@
 </p>
     LavaLust is a lightweight Web Framework - (using MVC pattern) - for people who are developing web sites using PHP. It helps you write code easily using Object-Oriented Approach. It also provides set of libraries for commonly needed tasks, as well as a helper functions to minimize the amount of time coding.
 
-## 🚀 Quick Start: LavaLust + Vue Integration
 
-**New to connecting LavaLust backend with Vue frontend?**  
-👉 **[Read the Simplified Integration Guide](SIMPLIFIED_INTEGRATION.md)** 👈
-
-This project includes:
-- ✅ **LavaLust's Native Database** - Using built-in Query Builder
-- ✅ **BaseApiController** - Common API logic in one place
-- ✅ **Vue 3 Frontend** with Vite dev server and proxy
-- ✅ **Clean API patterns** - 70% less code, easier to maintain
-
-### Database Migration Notes
-
-**VehiclesController** - ✅ Fully migrated to LavaLust Query Builder  
-**BookingsController** - ✅ Fully migrated (Query Builder + raw() for complex search)  
-**UsersController** - ✅ Fully migrated (Query Builder + raw() for search filtering)  
-**AuthController**, **PaymentController**, **MaintenanceController** - ✅ Using native methods
-
-### Running the Project
-
-**Backend (LavaLust):**
-1. Configure database in `app/config/database.php`
-2. Enable API in `app/config/api.php` (`api_helper_enabled = TRUE`)
-3. Access via your web server (XAMPP/WAMP): `http://localhost/Vehicle-Rental`
-
-**Frontend (Vue):**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Visit `http://localhost:5173` - API calls are automatically proxied to LavaLust!
 
 ## Documentation
 [LavaLust Documentation Link](https://lavalust.netlify.app)

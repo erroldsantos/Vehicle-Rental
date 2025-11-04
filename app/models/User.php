@@ -57,10 +57,10 @@ class User extends Model {
     }
     
     /**
-     * Get user by ID using ORM
+     * Get user by ID
      */
     public function getUserById($id) {
-        return $this->find($id); // ORM method
+        return $this->find($id); 
     }
     
     /**
@@ -72,9 +72,6 @@ class User extends Model {
         return !empty($result) ? $result[0] : null;
     }
     
-    /**
-     * Create new user using ORM
-     */
     public function createUser($data) {
         // Validate required fields
         $required = ['first_name', 'last_name', 'email', 'password'];

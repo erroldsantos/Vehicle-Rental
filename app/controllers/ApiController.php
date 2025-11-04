@@ -10,16 +10,10 @@ class ApiController extends Controller {
     public function __construct() {
         parent::__construct();
         
-        // Load API library for all API controllers
         $this->call->library('api');
-        
-        // Explicitly load and assign database to $this->db
-        $this->call->database();
-        // The database is now accessible via $this->db (assigned by __get magic method)
     }
     
     /**
-     * Validate required fields in request body
      * 
      * @param array $data Request data
      * @param array $required Required field names
@@ -42,10 +36,8 @@ class ApiController extends Controller {
      * @param string $message Custom error message
      */
     protected function handleDbError($e, $message = 'Database error occurred') {
-        // Log the actual error (in production, use proper logging)
         error_log($e->getMessage());
         
-        // Send user-friendly error
         $this->api->respond_error($message, 500);
     }
     

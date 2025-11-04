@@ -1,12 +1,12 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-require_once APP_DIR . 'controllers/ApiController.php';
-
-class VehiclesController extends ApiController {
+class VehiclesController extends Controller {
 
     public function __construct() {
         parent::__construct();
+        // Load the API library
+        $this->call->library('api');
         // Load the Vehicle model (ORM-based)
         $this->call->model('Vehicle');
     }
@@ -16,12 +16,13 @@ class VehiclesController extends ApiController {
         $this->api->require_method('GET');
 
         try {
+            // Get all GET parameters if any exist
+            $getAllParams = !empty($_GET) ? $this->io->get() : [];
             $filters = [
-                'status' => $_GET['status'] ?? null,
-                'search' => $_GET['search'] ?? null
+                'status' => isset($getAllParams['status']) ? $getAllParams['status'] : null,
+                'search' => isset($getAllParams['search']) ? $getAllParams['search'] : null
             ];
             
-            // Use ORM-based Vehicle model
             $vehicles = $this->Vehicle->getAllVehicles($filters);
             
             // Convert objects to arrays for consistent JSON output
@@ -31,13 +32,14 @@ class VehiclesController extends ApiController {
                 }, $vehicles);
             }
             
-            $this->success([
+            $this->api->respond([
                 'vehicles' => $vehicles,
                 'total' => count($vehicles)
             ]);
             
         } catch (Exception $e) {
-            $this->handleDbError($e, 'Failed to fetch vehicles');
+            error_log($e->getMessage());
+            $this->api->respond_error('Failed to fetch vehicles', 500);
         }
     }
 
@@ -46,20 +48,21 @@ class VehiclesController extends ApiController {
         $this->api->require_method('GET');
         
         try {
-            // Use ORM to find vehicle
+            // Find vehicle
             $vehicle = $this->Vehicle->getVehicleById($id);
             
             if (!$vehicle) {
-                return $this->error('Vehicle not found', 404);
+                return $this->api->respond_error('Vehicle not found', 404);
             }
             
             // Convert object to array if needed
             $vehicle = is_object($vehicle) ? (array)$vehicle : $vehicle;
             
-            $this->success($vehicle);
+            $this->api->respond($vehicle);
             
         } catch (Exception $e) {
-            $this->handleDbError($e, 'Failed to fetch vehicle');
+            error_log($e->getMessage());
+            $this->api->respond_error('Failed to fetch vehicle', 500);
         }
     }
 
@@ -69,7 +72,7 @@ class VehiclesController extends ApiController {
         $input = $this->api->body();
 
         try {
-            // Use ORM model to create vehicle (includes validation)
+            // Create vehicle (includes validation)
             $this->Vehicle->createVehicle($input);
             $id = $this->db->last_id();
             
@@ -81,7 +84,7 @@ class VehiclesController extends ApiController {
             
         } catch (Exception $e) {
             // Model throws exceptions with validation errors
-            $this->error($e->getMessage(), 400);
+            $this->api->respond_error($e->getMessage(), 400);
         }
     }
 
@@ -92,21 +95,24 @@ class VehiclesController extends ApiController {
         $input = $this->api->body();
 
         try {
-            // Use ORM model to update vehicle (includes validation)
+            // Update vehicle (includes validation)
             $this->Vehicle->updateVehicle($id, $input);
             
             // Fetch updated record
             $updated = $this->Vehicle->getVehicleById($id);
             $updated = is_object($updated) ? (array)$updated : $updated;
             
-            $this->success($updated, 'Vehicle updated successfully');
+            $this->api->respond([
+                'data' => $updated,
+                'message' => 'Vehicle updated successfully'
+            ]);
             
         } catch (Exception $e) {
             // Handle different error types
             if (strpos($e->getMessage(), 'not found') !== false) {
-                $this->error($e->getMessage(), 404);
+                $this->api->respond_error($e->getMessage(), 404);
             } else {
-                $this->error($e->getMessage(), 400);
+                $this->api->respond_error($e->getMessage(), 400);
             }
         }
     }
@@ -116,16 +122,16 @@ class VehiclesController extends ApiController {
         $this->api->require_method('DELETE');
 
         try {
-            // Use ORM model to soft delete vehicle
+            // Soft delete vehicle
             $this->Vehicle->deleteVehicle($id);
             
             $this->api->respond(['message' => 'Vehicle deleted successfully']);
             
         } catch (Exception $e) {
             if (strpos($e->getMessage(), 'not found') !== false) {
-                $this->error($e->getMessage(), 404);
+                $this->api->respond_error($e->getMessage(), 404);
             } else {
-                $this->error($e->getMessage(), 400);
+                $this->api->respond_error($e->getMessage(), 400);
             }
         }
     }

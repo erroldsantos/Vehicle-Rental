@@ -1,12 +1,11 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-require_once APP_DIR . 'controllers/ApiController.php';
-
-class MaintenanceController extends ApiController {
+class MaintenanceController extends Controller {
     
     public function __construct() {
         parent::__construct();
+        $this->call->library('api');
         $this->call->model('Maintenance');
         $this->call->model('Vehicle');
     }
@@ -16,13 +15,12 @@ class MaintenanceController extends ApiController {
         $this->api->require_method('GET');
 
         try {
-            $filters = [];
-            if (isset($_GET['status'])) {
-                $filters['status'] = $_GET['status'];
-            }
-            if (isset($_GET['vehicle_id'])) {
-                $filters['vehicle_id'] = $_GET['vehicle_id'];
-            }
+            // Get all GET parameters if any exist
+            $getAllParams = !empty($_GET) ? $this->io->get() : [];
+            $filters = [
+                'status' => isset($getAllParams['status']) ? $getAllParams['status'] : null,
+                'vehicle_id' => isset($getAllParams['vehicle_id']) ? $getAllParams['vehicle_id'] : null
+            ];
 
             $maintenance = $this->Maintenance->getAllMaintenance($filters);
             $stats = $this->Maintenance->getMaintenanceStats();

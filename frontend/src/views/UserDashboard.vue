@@ -45,11 +45,11 @@
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon">
-          <i class="fas fa-car"></i>
+          <i class="fas fa-check-double"></i>
         </div>
         <div class="stat-content">
-          <h3>{{ stats.totalBookings }}</h3>
-          <p>Total Bookings</p>
+          <h3>{{ stats.completedBookings }}</h3>
+          <p>Completed Bookings</p>
         </div>
       </div>
       
@@ -189,7 +189,7 @@ export default {
     const apiStore = useApiStore()
     const loading = ref(false)
     const stats = ref({
-      totalBookings: 0,
+      completedBookings: 0,
       activeBookings: 0,
       totalSpent: '0.00',
       favoriteVehicles: 0
@@ -250,7 +250,7 @@ export default {
         const userBookings = bookingsData.bookings || bookingsData.data?.bookings || []
         
         // Calculate stats from real data
-        const totalBookings = userBookings.length
+        const completedBookings = userBookings.filter(b => b.status === 'completed').length
         const activeBookings = userBookings.filter(b => 
           b.status === 'confirmed' || b.status === 'pending'
         ).length
@@ -259,15 +259,15 @@ export default {
           .reduce((sum, b) => sum + parseFloat(b.total_amount || 0), 0)
         
         stats.value = {
-          totalBookings,
+          completedBookings,
           activeBookings,
           totalSpent: totalSpent.toFixed(2),
-          favoriteVehicles: Math.min(totalBookings, 5) // Approximate based on bookings
+          favoriteVehicles: Math.min(completedBookings, 5) // Approximate based on completed bookings
         }
       } catch (error) {
         console.error('Error loading user stats:', error)
         stats.value = {
-          totalBookings: 0,
+          completedBookings: 0,
           activeBookings: 0,
           totalSpent: '0.00',
           favoriteVehicles: 0

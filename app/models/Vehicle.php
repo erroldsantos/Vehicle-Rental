@@ -11,50 +11,39 @@ class Vehicle extends Model {
      * Get all vehicles with optional filtering
      */
     public function getAllVehicles($filters = []) {
-        // For complex search queries, use raw SQL
+        $query = "SELECT * FROM vehicles WHERE deleted_at IS NULL";
+        $params = [];
+        
+        // Apply status filter
+        if (!empty($filters['status'])) {
+            $query .= " AND status = ?";
+            $params[] = $filters['status'];
+        }
+        
+        // Apply search filter
         if (!empty($filters['search'])) {
-            $query = "SELECT * FROM vehicles WHERE deleted_at IS NULL";
-            $params = [];
-            
-            if (!empty($filters['status'])) {
-                $query .= " AND status = ?";
-                $params[] = $filters['status'];
-            }
-            
             $search = '%' . $filters['search'] . '%';
             $query .= " AND (brand LIKE ? OR model LIKE ? OR plate_number LIKE ?)";
             $params[] = $search;
             $params[] = $search;
             $params[] = $search;
-            
-            $query .= " ORDER BY brand, model";
-            
-            $stmt = $this->db->raw($query, $params);
-            return $stmt->fetchAll();
         }
         
-        // Use ORM for simple queries
-        $vehicles = $this->all();
+        $query .= " ORDER BY brand, model";
         
-        // Apply status filter if needed
-        if (!empty($filters['status'])) {
-            $vehicles = array_filter($vehicles, function($vehicle) use ($filters) {
-                return $vehicle->status === $filters['status'];
-            });
-        }
-        
-        return array_values($vehicles);
+        $stmt = $this->db->raw($query, $params);
+        return $stmt->fetchAll();
     }
     
     /**
-     * Get vehicle by ID using ORM
+     * Get vehicle by ID
      */
     public function getVehicleById($id) {
         return $this->find($id);
     }
     
     /**
-     * Create new vehicle using ORM
+     * Create new vehicle
      */
     public function createVehicle($data) {
         // Validate required fields
@@ -89,7 +78,7 @@ class Vehicle extends Model {
     }
     
     /**
-     * Update vehicle using ORM
+     * Update vehicle
      */
     public function updateVehicle($id, $data) {
         // Check if vehicle exists
@@ -125,7 +114,7 @@ class Vehicle extends Model {
     }
     
     /**
-     * Delete vehicle using ORM soft delete
+     * Delete vehicle using soft delete
      */
     public function deleteVehicle($id) {
         // Check if vehicle exists
