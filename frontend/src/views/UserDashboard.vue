@@ -67,7 +67,7 @@
         <div class="stat-icon">
           <i class="fas fa-dollar-sign"></i>
         </div>
-        <div class="stat-card">
+        <div class="stat-content">
           <h3>₱{{ stats.totalSpent }}</h3>
           <p>Total Spent</p>
         </div>
@@ -125,7 +125,7 @@
             <span :class="['status-badge', booking.status]">
               {{ booking.status.charAt(0).toUpperCase() + booking.status.slice(1) }}
             </span>
-            <p class="booking-amount">₱{{ booking.total_amount }}</p>
+            <p class="booking-amount">₱{{ parseFloat(booking.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</p>
           </div>
         </div>
       </div>
@@ -164,7 +164,7 @@
             <h4>{{ vehicle.brand }} {{ vehicle.model }}</h4>
             <p class="vehicle-year">{{ vehicle.year }}</p>
             <div class="vehicle-rate">
-              <span class="price">₱{{ vehicle.daily_rate }}</span>
+              <span class="price">₱{{ parseFloat(vehicle.daily_rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
               <span class="period">/day</span>
             </div>
             <button class="btn-primary btn-small">
@@ -261,7 +261,7 @@ export default {
         stats.value = {
           completedBookings,
           activeBookings,
-          totalSpent: totalSpent.toFixed(2),
+          totalSpent: totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
           favoriteVehicles: Math.min(completedBookings, 5) // Approximate based on completed bookings
         }
       } catch (error) {

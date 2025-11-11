@@ -16,7 +16,7 @@
       />
       <StatsCard
         title="Total Revenue"
-        :value="'$' + stats.totalRevenue"
+        :value="'₱' + stats.totalRevenue"
         icon="fas fa-dollar-sign"
         variant="primary"
       />
@@ -199,7 +199,7 @@ export default {
           .filter(booking => booking.status === 'completed')
           .reduce((sum, booking) => sum + parseFloat(booking.total_amount || 0), 0)
         
-        stats.value.totalRevenue = totalRevenue.toFixed(2)
+        stats.value.totalRevenue = totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       } catch (error) {
         console.error('Error loading booking stats:', error)
       }

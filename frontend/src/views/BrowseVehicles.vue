@@ -45,49 +45,6 @@
 
       <div class="filter-group">
         <label>
-          <i class="fas fa-car"></i>
-          Type
-        </label>
-        <select v-model="filters.type" @change="filterVehicles">
-          <option value="">All Types</option>
-          <option value="sedan">Sedan</option>
-          <option value="suv">SUV</option>
-          <option value="van">Van</option>
-          <option value="truck">Truck</option>
-          <option value="motorcycle">Motorcycle</option>
-        </select>
-      </div>
-
-      <div class="filter-group">
-        <label>
-          <i class="fas fa-gas-pump"></i>
-          Fuel Type
-        </label>
-        <select v-model="filters.fuel_type" @change="filterVehicles">
-          <option value="">All Fuel Types</option>
-          <option value="gasoline">Gasoline</option>
-          <option value="diesel">Diesel</option>
-          <option value="electric">Electric</option>
-          <option value="hybrid">Hybrid</option>
-        </select>
-      </div>
-
-      <div class="filter-group">
-        <label>
-          <i class="fas fa-users"></i>
-          Capacity
-        </label>
-        <select v-model="filters.capacity" @change="filterVehicles">
-          <option value="">Any Capacity</option>
-          <option value="2">2 Passengers</option>
-          <option value="4">4 Passengers</option>
-          <option value="5">5 Passengers</option>
-          <option value="7">7+ Passengers</option>
-        </select>
-      </div>
-
-      <div class="filter-group">
-        <label>
           <i class="fas fa-sort-amount-down"></i>
           Sort By
         </label>
@@ -540,7 +497,7 @@ export default {
     }
 
     const formatPrice = (price) => {
-      return parseFloat(price).toFixed(2)
+      return parseFloat(price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     }
 
     const getFeaturesList = (features) => {
@@ -629,7 +586,8 @@ export default {
 }
 
 .header-content {
-  max-width: 1200px;
+  max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
   padding: 1.25rem 2rem;
   display: flex;

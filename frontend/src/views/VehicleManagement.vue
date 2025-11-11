@@ -140,7 +140,7 @@
           <span class="vehicle-model">{{ getVehicleDisplay(vehicle) }}</span>
           <span class="plate-number">{{ vehicle.plate_number }}</span>
           <span class="vehicle-year">{{ vehicle.year }}</span>
-          <span class="rate">₱{{ vehicle.daily_rate }}</span>
+          <span class="rate">₱{{ parseFloat(vehicle.daily_rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
           <span>
             <span :class="['status-badge', vehicle.status.toLowerCase()]">
               {{ formatStatus(vehicle.status) }}

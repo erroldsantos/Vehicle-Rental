@@ -354,7 +354,7 @@ export default {
     }
 
     const formatAmount = (amount) => {
-      return parseFloat(amount).toFixed(2)
+      return parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     }
 
     const calculateDuration = (startDate, endDate) => {
@@ -470,7 +470,8 @@ export default {
 }
 
 .header-content {
-  max-width: 1200px;
+  max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
   padding: 1.25rem 2rem;
   display: flex;

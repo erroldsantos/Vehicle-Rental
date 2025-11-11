@@ -182,7 +182,7 @@
           <span class="vehicle-info">{{ record.vehicle_display }}</span>
           <span class="maintenance-desc">{{ record.description }}</span>
           <span class="schedule-date">{{ formatDate(record.scheduled_date) }}</span>
-          <span class="cost">₱{{ record.cost }}</span>
+          <span class="cost">₱{{ parseFloat(record.cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
           <span>
             <span :class="['status-badge', record.status.toLowerCase()]">
               {{ formatStatus(record.status) }}
@@ -254,9 +254,10 @@ export default {
       }).length
     })
 
-    const totalCost = computed(() => 
-      maintenance.value.reduce((sum, m) => sum + parseFloat(m.cost || 0), 0).toFixed(2)
-    )
+    const totalCost = computed(() => {
+      const total = maintenance.value.reduce((sum, m) => sum + parseFloat(m.cost || 0), 0)
+      return total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    })
 
     const loadMaintenance = async () => {
       loading.value = true

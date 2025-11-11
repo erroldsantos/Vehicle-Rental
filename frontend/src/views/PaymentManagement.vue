@@ -313,7 +313,7 @@ export default {
 
     // Helper functions
     const formatAmount = (amount) => {
-      return parseFloat(amount || 0).toFixed(2)
+      return parseFloat(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     }
 
     const formatDate = (dateString) => {

@@ -36,7 +36,7 @@
           <h3>Total Revenue</h3>
           <i class="fas fa-dollar-sign"></i>
         </div>
-        <div class="stat-number">₱{{ (stats.total_revenue || 0).toLocaleString() }}</div>
+        <div class="stat-number">₱{{ parseFloat(stats.total_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
       </div>
     </div>
 
@@ -221,7 +221,7 @@
             <td>{{ booking.brand }} {{ booking.model }}<br><small>{{ booking.plate_number }}</small></td>
             <td>{{ formatDate(booking.start_date) }}</td>
             <td>{{ formatDate(booking.end_date) }}</td>
-            <td>₱{{ parseFloat(booking.total_amount).toFixed(2) }}</td>
+            <td>₱{{ parseFloat(booking.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
             <td>
               <span :class="['badge', 'status-' + booking.status]">
                 {{ formatStatus(booking.status) }}
@@ -329,7 +329,9 @@ export default {
           const end = new Date(newBooking.value.end_date)
           const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
           const total = vehicle.daily_rate * days
-          return `₱${total.toFixed(2)} (${days} days × ₱${vehicle.daily_rate}/day)`
+          const formattedTotal = total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          const formattedRate = parseFloat(vehicle.daily_rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          return `₱${formattedTotal} (${days} days × ₱${formattedRate}/day)`
         }
       }
       return 'Select dates and vehicle'
