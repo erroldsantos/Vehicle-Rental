@@ -1,5 +1,5 @@
 <?php
-defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
+defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 /**
  * ------------------------------------------------------------------
  * LavaLust - an opensource lightweight PHP MVC Framework
@@ -46,23 +46,22 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 // Default route
 $router->get('/', 'Welcome::index');
 
-// API Routes for Vue Frontend Integration
-$router->group('/api', function() use ($router) {
-    
-    // Health check endpoint
+$router->group('/api', function () use ($router) {
+
     $router->get('/health', 'ApiController::health');
-    
+
     // Configuration endpoint
     $router->get('/config', 'ApiController::config');
-    
-    // Vehicle Management API endpoints
+
+    // Vehicle Management
     $router->get('/vehicles', 'VehiclesController::index');
     $router->get('/vehicles/{id}', 'VehiclesController::show');
+    $router->get('/vehicles/{id}/booked-dates', 'VehiclesController::bookedDates');
     $router->post('/vehicles', 'VehiclesController::create');
     $router->put('/vehicles/{id}', 'VehiclesController::update');
     $router->delete('/vehicles/{id}', 'VehiclesController::delete');
-    
-    // Maintenance Management API endpoints
+
+    // Maintenance Management
     $router->get('/maintenance', 'MaintenanceController::index');
     $router->get('/maintenance/vehicles', 'MaintenanceController::vehicles');
     $router->post('/maintenance/sync', 'MaintenanceController::sync');
@@ -71,8 +70,8 @@ $router->group('/api', function() use ($router) {
     $router->put('/maintenance/{id}', 'MaintenanceController::update');
     $router->put('/maintenance/{id}/complete', 'MaintenanceController::complete');
     $router->delete('/maintenance/{id}', 'MaintenanceController::delete');
-    
-    // User Management API endpoints
+
+    // User Management
     $router->get('/users', 'UsersController::index');
     $router->get('/users/{id}', 'UsersController::show');
     $router->post('/users', 'UsersController::create');
@@ -80,8 +79,8 @@ $router->group('/api', function() use ($router) {
     $router->delete('/users/{id}', 'UsersController::delete');
     $router->post('/users/login', 'UsersController::login');
     $router->post('/users/register', 'UsersController::register');
-    
-    // Booking Management API endpoints
+
+    // Booking Management
     $router->get('/bookings', 'BookingsController::index');
     $router->get('/bookings/available-vehicles', 'BookingsController::availableVehicles');
     $router->get('/bookings/users', 'BookingsController::users');
@@ -90,22 +89,22 @@ $router->group('/api', function() use ($router) {
     $router->put('/bookings/{id}', 'BookingsController::update');
     $router->put('/bookings/{id}/cancel', 'BookingsController::cancel');
     $router->delete('/bookings/{id}', 'BookingsController::delete');
-    
-    // Payment Management API endpoints
+
+    // Payment Management
     $router->get('/payments', 'PaymentController::index');
     $router->get('/payments/stats', 'PaymentController::stats');
     $router->get('/payments/{id}', 'PaymentController::show');
     $router->post('/payments', 'PaymentController::create');
     $router->put('/payments/{id}', 'PaymentController::update');
     $router->delete('/payments/{id}', 'PaymentController::delete');
-    
-    // Authentication API endpoints
+
+    // Authentication
     $router->post('/auth/login', 'AuthController::login');
     $router->post('/auth/logout', 'AuthController::logout');
     $router->get('/auth/me', 'AuthController::me');
     $router->post('/auth/forgot-password', 'AuthController::forgotPassword');
-    
-    // Admin Dashboard API endpoints
+
+    // Admin Dashboard
     $router->get('/admin/stats', 'AdminController::stats');
     $router->get('/admin/overview', 'AdminController::overview');
     $router->get('/admin/users', 'AdminController::users');
@@ -117,5 +116,5 @@ $router->group('/api', function() use ($router) {
     $router->get('/admin/settings', 'AdminController::settings');
     $router->post('/admin/settings', 'AdminController::settings');
     $router->get('/admin/export', 'AdminController::export');
-    
+
 });

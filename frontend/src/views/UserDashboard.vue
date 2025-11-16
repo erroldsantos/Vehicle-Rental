@@ -59,7 +59,7 @@
         </div>
         <div class="stat-content">
           <h3>{{ stats.activeBookings }}</h3>
-          <p>Active Bookings</p>
+          <p>Confirmed Bookings</p>
         </div>
       </div>
       
@@ -252,7 +252,7 @@ export default {
         // Calculate stats from real data
         const completedBookings = userBookings.filter(b => b.status === 'completed').length
         const activeBookings = userBookings.filter(b => 
-          b.status === 'confirmed' || b.status === 'pending'
+          b.status === 'confirmed'
         ).length
         const totalSpent = userBookings
           .filter(b => b.status === 'completed')

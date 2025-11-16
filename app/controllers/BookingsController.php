@@ -101,7 +101,6 @@ class BookingsController extends Controller {
             $this->api->respond($booking, 201);
             
         } catch (Exception $e) {
-            // Model throws exceptions with validation errors
             $this->api->respond_error($e->getMessage(), 400);
         }
     }
@@ -196,7 +195,6 @@ class BookingsController extends Controller {
     
     /**
      * Get available vehicles for date range
-     * GET /api/bookings/available-vehicles?start_date=X&end_date=Y
      */
     public function availableVehicles() {
         $this->api->require_method('GET');

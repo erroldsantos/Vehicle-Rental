@@ -1,10 +1,6 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
-/**
- * 
- * All API controllers should extend this class.
- */
 class ApiController extends Controller {
     
     public function __construct() {

@@ -10,12 +10,10 @@ class MaintenanceController extends Controller {
         $this->call->model('Vehicle');
     }
 
-    // GET /maintenance - List all maintenance records with vehicle info
     public function index() {
         $this->api->require_method('GET');
 
         try {
-            // Get all GET parameters if any exist
             $getAllParams = !empty($_GET) ? $this->io->get() : [];
             $filters = [
                 'status' => isset($getAllParams['status']) ? $getAllParams['status'] : null,
@@ -54,8 +52,7 @@ class MaintenanceController extends Controller {
             $this->api->respond_error('Database error: ' . $e->getMessage(), 500);
         }
     }
-
-    // GET /maintenance/vehicles - Get list of vehicles for dropdown
+    
     public function vehicles() {
         $this->api->require_method('GET');
         
@@ -66,7 +63,7 @@ class MaintenanceController extends Controller {
             
             // Format for display
             $formatted = array_map(function($v) {
-                $v['display_name'] = "{$v['brand']} {$v['model']} ({$v['year']}) - {$v['plate_number']} [" . strtoupper($v['status']) . "]";
+                $v['display_name'] = "{$v['brand']} {$v['model']} ({$v['year']}) - {$v['plate_number']}";
                 return $v;
             }, $vehicles);
             

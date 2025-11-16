@@ -87,8 +87,8 @@
               class="vehicle-image"
               @error="handleImageError"
             >
-            <span class="vehicle-status" :class="vehicle.status">
-              {{ vehicle.status === 'available' ? 'Available' : 'Unavailable' }}
+            <span class="vehicle-status" :class="vehicle.status === 'maintenance' ? 'unavailable' : 'available'">
+              {{ vehicle.status === 'maintenance' ? 'Under Maintenance' : 'Available' }}
             </span>
           </div>
 
@@ -131,10 +131,10 @@
               <button 
                 class="btn-book" 
                 @click="bookVehicle(vehicle)"
-                :disabled="vehicle.status !== 'available'"
+                :disabled="vehicle.status === 'maintenance'"
               >
                 <i class="fas fa-calendar-check"></i>
-                {{ vehicle.status === 'available' ? 'Book Now' : 'Unavailable' }}
+                {{ vehicle.status === 'maintenance' ? 'Unavailable' : 'Book Now' }}
               </button>
             </div>
           </div>
@@ -188,8 +188,13 @@
                 id="start_date"
                 v-model="bookingForm.start_date"
                 :min="minDate"
+                @change="checkDateAvailability"
                 required
               >
+              <small v-if="bookedDateRanges.length > 0" class="date-info">
+                <i class="fas fa-info-circle"></i>
+                Some dates are unavailable for this vehicle
+              </small>
             </div>
 
             <div class="form-group">
@@ -202,8 +207,23 @@
                 id="end_date"
                 v-model="bookingForm.end_date"
                 :min="bookingForm.start_date || minDate"
+                @change="checkDateAvailability"
                 required
               >
+            </div>
+            
+            <div v-if="dateConflictMessage" class="alert-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              {{ dateConflictMessage }}
+            </div>
+
+            <div v-if="bookedDateRanges.length > 0" class="booked-dates-info">
+              <p><strong>Currently Booked Dates:</strong></p>
+              <ul>
+                <li v-for="(range, index) in bookedDateRanges" :key="index">
+                  {{ formatDateRange(range.start_date, range.end_date) }}
+                </li>
+              </ul>
             </div>
 
             <div class="form-group">
@@ -287,6 +307,9 @@ export default {
       fuel_type: '',
       capacity: ''
     })
+    const bookedDateRanges = ref([])
+    const maintenanceDates = ref([])
+    const dateConflictMessage = ref('')
     
     const showBookingModal = ref(false)
     const selectedVehicle = ref(null)
@@ -427,13 +450,71 @@ export default {
       filterVehicles()
     }
 
-    const bookVehicle = (vehicle) => {
-      if (vehicle.status !== 'available') return
+    // Fetch booked dates for a vehicle
+    const loadBookedDates = async (vehicleId) => {
+      try {
+        const data = await apiStore.get(`/vehicles/${vehicleId}/booked-dates`)
+        bookedDateRanges.value = data.booked_dates || []
+        maintenanceDates.value = data.maintenance_dates || []
+      } catch (error) {
+        console.error('Error loading booked dates:', error)
+        bookedDateRanges.value = []
+        maintenanceDates.value = []
+      }
+    }
+
+    // Check if selected dates conflict with existing bookings
+    const checkDateAvailability = () => {
+      dateConflictMessage.value = ''
       
+      if (!bookingForm.value.start_date || !bookingForm.value.end_date) {
+        return
+      }
+
+      const selectedStart = new Date(bookingForm.value.start_date)
+      const selectedEnd = new Date(bookingForm.value.end_date)
+
+      // Check against booked date ranges
+      for (const range of bookedDateRanges.value) {
+        const bookedStart = new Date(range.start_date)
+        const bookedEnd = new Date(range.end_date)
+
+        // Check if dates overlap
+        if (
+          (selectedStart >= bookedStart && selectedStart <= bookedEnd) ||
+          (selectedEnd >= bookedStart && selectedEnd <= bookedEnd) ||
+          (selectedStart <= bookedStart && selectedEnd >= bookedEnd)
+        ) {
+          dateConflictMessage.value = `The selected dates overlap with an existing booking (${formatDateRange(range.start_date, range.end_date)}). Please choose different dates.`
+          return
+        }
+      }
+
+      // Check against maintenance dates
+      for (const maintenance of maintenanceDates.value) {
+        const maintenanceDate = new Date(maintenance.scheduled_date)
+        if (maintenanceDate >= selectedStart && maintenanceDate <= selectedEnd) {
+          dateConflictMessage.value = `The vehicle is scheduled for maintenance on ${new Date(maintenance.scheduled_date).toLocaleDateString()}. Please choose different dates.`
+          return
+        }
+      }
+    }
+
+    const formatDateRange = (startDate, endDate) => {
+      const start = new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      const end = new Date(endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      return `${start} - ${end}`
+    }
+
+    const bookVehicle = async (vehicle) => {
       selectedVehicle.value = vehicle
       showBookingModal.value = true
+      dateConflictMessage.value = ''
       
-      // Set default dates - use local date to avoid timezone issues
+      // Load booked dates for this vehicle
+      await loadBookedDates(vehicle.id)
+      
+      // Set default dates - today and tomorrow
       const today = new Date()
       const year = today.getFullYear()
       const month = String(today.getMonth() + 1).padStart(2, '0')
@@ -447,6 +528,9 @@ export default {
       
       bookingForm.value.start_date = `${year}-${month}-${day}`
       bookingForm.value.end_date = `${tomorrowYear}-${tomorrowMonth}-${tomorrowDay}`
+      
+      // Check if default dates are available
+      checkDateAvailability()
     }
 
     const submitBooking = async () => {
@@ -456,6 +540,13 @@ export default {
       if (!userId) {
         alert('Please log in to make a booking')
         router.push({ name: 'login' })
+        return
+      }
+
+      // Final check for date conflicts
+      checkDateAvailability()
+      if (dateConflictMessage.value) {
+        alert(dateConflictMessage.value)
         return
       }
 
@@ -488,6 +579,9 @@ export default {
     const closeBookingModal = () => {
       showBookingModal.value = false
       selectedVehicle.value = null
+      bookedDateRanges.value = []
+      maintenanceDates.value = []
+      dateConflictMessage.value = ''
       bookingForm.value = {
         start_date: '',
         end_date: '',
@@ -546,6 +640,8 @@ export default {
       searchQuery,
       sortBy,
       filters,
+      bookedDateRanges,
+      dateConflictMessage,
       showBookingModal,
       selectedVehicle,
       bookingForm,
@@ -557,6 +653,8 @@ export default {
       filterVehicles,
       sortVehicles,
       clearFilters,
+      checkDateAvailability,
+      formatDateRange,
       bookVehicle,
       submitBooking,
       closeBookingModal,
@@ -564,7 +662,8 @@ export default {
       getFeaturesList,
       getPlaceholderImage,
       handleImageError,
-      logout
+      logout,
+      loadVehicles
     }
   }
 }
@@ -775,6 +874,21 @@ export default {
 }
 
 .filter-group select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.date-filter-input {
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  background: white;
+}
+
+.date-filter-input:focus {
   outline: none;
   border-color: #667eea;
 }
@@ -1129,6 +1243,57 @@ export default {
 .form-group input:focus {
   outline: none;
   border-color: #667eea;
+}
+
+.form-group small.date-info {
+  color: #667eea;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.alert-warning {
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  color: #92400e;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.alert-warning i {
+  color: #f59e0b;
+}
+
+.booked-dates-info {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 0.5rem;
+}
+
+.booked-dates-info p {
+  margin: 0 0 0.5rem 0;
+  color: #0c4a6e;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.booked-dates-info ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.booked-dates-info li {
+  color: #075985;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
 }
 
 .booking-summary {

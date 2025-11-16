@@ -33,9 +33,6 @@ class AdminController extends Controller {
         }
     }
     
-    /**
-     * Get all users with pagination
-     */
     public function users() {
         $this->api->require_method('GET');
         
