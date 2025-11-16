@@ -100,9 +100,12 @@ $router->group('/api', function () use ($router) {
 
     // Authentication
     $router->post('/auth/login', 'AuthController::login');
+    $router->post('/auth/register', 'AuthController::register');
     $router->post('/auth/logout', 'AuthController::logout');
     $router->get('/auth/me', 'AuthController::me');
     $router->post('/auth/forgot-password', 'AuthController::forgotPassword');
+    $router->get('/auth/verify-email', 'AuthController::verifyEmail');
+    $router->post('/auth/resend-verification', 'AuthController::resendVerification');
 
     // Admin Dashboard
     $router->get('/admin/stats', 'AdminController::stats');

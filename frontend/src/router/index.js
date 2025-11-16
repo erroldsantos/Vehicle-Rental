@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../views/Login.vue'
 import SignUp from '../views/SignUp.vue'
+import EmailVerification from '../views/EmailVerification.vue'
 import Dashboard from '../views/Dashboard.vue'
 import UserDashboard from '../views/UserDashboard.vue'
 import BrowseVehicles from '../views/BrowseVehicles.vue'
@@ -23,6 +24,12 @@ const routes = [
     name: 'signup',
     component: SignUp,
     meta: { title: 'Sign Up', requiresGuest: true }
+  },
+  {
+    path: '/verify-email',
+    name: 'verify-email',
+    component: EmailVerification,
+    meta: { title: 'Verify Email' }
   },
   {
     path: '/',

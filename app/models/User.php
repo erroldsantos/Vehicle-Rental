@@ -67,7 +67,7 @@ class User extends Model {
      * Get user by email
      */
     public function getUserByEmail($email) {
-        $stmt = $this->db->raw("SELECT id, first_name, last_name, email, phone, password, role, status FROM users WHERE email = ? AND deleted_at IS NULL", [$email]);
+        $stmt = $this->db->raw("SELECT id, first_name, last_name, email, phone, password, role, status, email_verified, verification_token, verification_token_expires FROM users WHERE email = ? AND deleted_at IS NULL", [$email]);
         $result = $stmt->fetchAll();
         return !empty($result) ? $result[0] : null;
     }
@@ -94,6 +94,10 @@ class User extends Model {
         $data['role'] = $data['role'] ?? 'user';
         $data['status'] = $data['status'] ?? 'active';
         
+        // Generate verification token
+        $verificationToken = bin2hex(random_bytes(32));
+        $tokenExpires = date('Y-m-d H:i:s', strtotime('+24 hours'));
+        
         return $this->insert([
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'], 
@@ -101,7 +105,10 @@ class User extends Model {
             'phone' => $data['phone'] ?? null,
             'password' => $data['password'],
             'role' => $data['role'],
-            'status' => $data['status']
+            'status' => $data['status'],
+            'email_verified' => 0,
+            'verification_token' => $verificationToken,
+            'verification_token_expires' => $tokenExpires
         ]);
     }
     
@@ -183,6 +190,72 @@ class User extends Model {
         }
         
         return false;
+    }
+    
+    /**
+     * Get user by verification token
+     */
+    public function getUserByVerificationToken($token) {
+        $stmt = $this->db->raw(
+            "SELECT * FROM users WHERE verification_token = ? AND deleted_at IS NULL", 
+            [$token]
+        );
+        $result = $stmt->fetchAll();
+        return !empty($result) ? $result[0] : null;
+    }
+    
+    /**
+     * Verify user email
+     */
+    public function verifyEmail($token) {
+        $user = $this->getUserByVerificationToken($token);
+        
+        if (!$user) {
+            throw new Exception("Invalid verification token");
+        }
+        
+        // Check if token is expired
+        if (strtotime($user['verification_token_expires']) < time()) {
+            throw new Exception("Verification token has expired");
+        }
+        
+        // Check if already verified
+        if ($user['email_verified'] == 1) {
+            throw new Exception("Email already verified");
+        }
+        
+        // Update user
+        return $this->update($user['id'], [
+            'email_verified' => 1,
+            'verification_token' => null,
+            'verification_token_expires' => null
+        ]);
+    }
+    
+    /**
+     * Resend verification email
+     */
+    public function resendVerificationToken($email) {
+        $user = $this->getUserByEmail($email);
+        
+        if (!$user) {
+            throw new Exception("User not found");
+        }
+        
+        if ($user['email_verified'] == 1) {
+            throw new Exception("Email already verified");
+        }
+        
+        // Generate new token
+        $verificationToken = bin2hex(random_bytes(32));
+        $tokenExpires = date('Y-m-d H:i:s', strtotime('+24 hours'));
+        
+        $updated = $this->update($user['id'], [
+            'verification_token' => $verificationToken,
+            'verification_token_expires' => $tokenExpires
+        ]);
+        
+        return $updated ? $verificationToken : false;
     }
     
     /**

@@ -326,19 +326,19 @@ export default {
       successMessage.value = ''
 
       try {
-        const data = await apiStore.post('/users/register', {
-          first_name: form.firstName,
-          last_name: form.lastName,
+        const fullname = `${form.firstName} ${form.lastName}`.trim()
+        
+        const data = await apiStore.post('/auth/register', {
+          fullname: fullname,
           email: form.email,
-          phone: form.phone || null,
-          address: form.address || null,
+          phone: form.phone || '',
           password: form.password,
-          role: 'user' // Explicitly set as user role
+          role: 'user'
         })
 
-        // API returns {message: "...", user: {...}}
-        if (data.user || data.message) {
-          successMessage.value = data.message || 'Account created successfully! Redirecting to login...'
+        // Check if registration was successful
+        if (data.success) {
+          successMessage.value = data.message || 'Account created successfully! Please check your email to verify your account.'
           
           // Clear form
           Object.keys(form).forEach(key => {
@@ -349,16 +349,14 @@ export default {
             }
           })
 
-          // Redirect to login after 2 seconds
-          setTimeout(() => {
-            router.push('/login')
-          }, 2000)
+          // Don't auto-redirect - let user read the message about email verification
+          // User will need to verify email before they can login
         } else {
           errorMessage.value = data.message || 'Registration failed. Please try again.'
         }
       } catch (error) {
         console.error('Registration error:', error)
-        errorMessage.value = 'Connection error. Please check if the server is running and try again.'
+        errorMessage.value = error.message || 'Connection error. Please check if the server is running and try again.'
       } finally {
         loading.value = false
       }

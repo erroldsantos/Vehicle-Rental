@@ -71,6 +71,11 @@ class Lauth
         $user = !empty($users) ? $users[0] : null;
 
         if ($user && password_verify($password, $user['password'])) {
+            // Check if email is verified (if column exists)
+            if (isset($user['email_verified']) && $user['email_verified'] == 0) {
+                throw new Exception('Please verify your email address before logging in');
+            }
+            
             // Set session data
             $fullname = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
             $this->_lava->session->set_userdata([

@@ -194,7 +194,32 @@ export default {
         }
       } catch (error) {
         console.error('Login error:', error)
-        errorMessage.value = 'Connection error. Please check if the server is running and try again.'
+        
+        // Handle different error types
+        if (error.response) {
+          // Server responded with error status
+          const status = error.response.status
+          const message = error.response.data?.message || error.response.data?.error
+          
+          if (status === 403) {
+            // Email not verified
+            errorMessage.value = message || 'Please verify your email address before logging in. Check your inbox for the verification link.'
+          } else if (status === 401) {
+            // Invalid credentials
+            errorMessage.value = 'Invalid email or password. Please check your credentials and try again.'
+          } else if (status === 400) {
+            // Bad request
+            errorMessage.value = message || 'Please enter a valid email and password.'
+          } else {
+            errorMessage.value = message || 'Login failed. Please try again.'
+          }
+        } else if (error.request) {
+          // Request made but no response
+          errorMessage.value = 'Connection error. Please check if the server is running and try again.'
+        } else {
+          // Something else went wrong
+          errorMessage.value = 'An unexpected error occurred. Please try again.'
+        }
       } finally {
         loading.value = false
       }
