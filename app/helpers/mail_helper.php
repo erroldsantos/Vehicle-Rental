@@ -22,7 +22,7 @@ function sendMail($recipient, $subject, $body, $attachmentPath = null)
         $mail->Host = 'smtp.gmail.com';
         $mail->SMTPAuth = true;
         $mail->Username = 'ak4unt@gmail.com';
-        $mail->Password = 'mdxj rksc outd iqwj';
+        $mail->Password = 'xabw xley kexs vejh';
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port = 465;
 

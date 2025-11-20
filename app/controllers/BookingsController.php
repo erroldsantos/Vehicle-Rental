@@ -120,6 +120,21 @@ class BookingsController extends Controller {
             
             $input = $this->api->body();
             
+            // Check if status is being changed to 'confirmed'
+            $warning = null;
+            if (isset($input['status']) && $input['status'] === 'confirmed') {
+                // Get the booking to find the user_id
+                $booking = $this->Booking->getBookingById($id);
+                if ($booking) {
+                    $userId = is_object($booking) ? $booking->user_id : $booking['user_id'];
+                    // Check user's confirmed bookings count
+                    $confirmedCount = $this->Booking->getUserConfirmedBookingsCount($userId);
+                    if ($confirmedCount >= 2) {
+                        $warning = "Warning: This user already has {$confirmedCount} confirmed bookings. The recommended limit is 2 confirmed bookings per user.";
+                    }
+                }
+            }
+            
             // update booking (includes validation)
             $this->Booking->updateBooking($id, $input);
             
@@ -127,7 +142,12 @@ class BookingsController extends Controller {
             $booking = $this->Booking->getBookingById($id);
             $booking = is_object($booking) ? (array)$booking : $booking;
             
-            $this->api->respond($booking);
+            $response = ['booking' => $booking];
+            if ($warning) {
+                $response['warning'] = $warning;
+            }
+            
+            $this->api->respond($response);
             
         } catch (Exception $e) {
             // Handle different error types

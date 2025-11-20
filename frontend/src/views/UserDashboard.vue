@@ -53,13 +53,17 @@
         </div>
       </div>
       
-      <div class="stat-card">
+      <div class="stat-card" :class="{ 'warning': stats.activeBookings >= 2 }">
         <div class="stat-icon">
           <i class="fas fa-check-circle"></i>
         </div>
         <div class="stat-content">
-          <h3>{{ stats.activeBookings }}</h3>
+          <h3>{{ stats.activeBookings }}/2</h3>
           <p>Confirmed Bookings</p>
+          <small v-if="stats.activeBookings >= 2" class="limit-warning">
+            <i class="fas fa-exclamation-circle"></i>
+            Booking limit reached
+          </small>
         </div>
       </div>
       
@@ -72,16 +76,11 @@
           <p>Total Spent</p>
         </div>
       </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon">
-          <i class="fas fa-star"></i>
-        </div>
-        <div class="stat-content">
-          <h3>{{ stats.favoriteVehicles }}</h3>
-          <p>Favorite Vehicles</p>
-        </div>
-      </div>
+    </div>
+
+    <!-- License Verification Section -->
+    <div class="section">
+      <LicenseVerification />
     </div>
 
     <!-- Recent Bookings -->
@@ -139,41 +138,6 @@
         </button>
       </div>
     </div>
-
-    <!-- Available Vehicles Preview -->
-    <div class="section">
-      <div class="section-header">
-        <h2>Featured Vehicles</h2>
-        <button class="btn-link" @click="$router.push('/browse-vehicles')">View All</button>
-      </div>
-      
-      <div class="vehicles-grid">
-        <div 
-          v-for="vehicle in featuredVehicles" 
-          :key="vehicle.id"
-          class="vehicle-card"
-          @click="selectVehicle(vehicle)"
-        >
-          <img 
-            :src="vehicle.imageUrl || getPlaceholderImage(vehicle.brand)" 
-            :alt="vehicle.brand + ' ' + vehicle.model"
-            class="vehicle-image"
-            @error="handleImageError"
-          >
-          <div class="vehicle-info">
-            <h4>{{ vehicle.brand }} {{ vehicle.model }}</h4>
-            <p class="vehicle-year">{{ vehicle.year }}</p>
-            <div class="vehicle-rate">
-              <span class="price">₱{{ parseFloat(vehicle.daily_rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-              <span class="period">/day</span>
-            </div>
-            <button class="btn-primary btn-small">
-              Book Now
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -181,9 +145,13 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useApiStore } from '@/stores/api'
+import LicenseVerification from '@/components/LicenseVerification.vue'
 
 export default {
   name: 'UserDashboard',
+  components: {
+    LicenseVerification
+  },
   setup() {
     const router = useRouter()
     const apiStore = useApiStore()
@@ -195,7 +163,6 @@ export default {
       favoriteVehicles: 0
     })
     const recentBookings = ref([])
-    const featuredVehicles = ref([])
 
     // Get user info from localStorage
     const userInfo = computed(() => {
@@ -204,7 +171,13 @@ export default {
     })
 
     const userName = computed(() => {
-      return userInfo.value.name || 'User'
+      const user = userInfo.value
+      // Try different possible name fields
+      if (user.name) return user.name
+      if (user.first_name && user.last_name) return `${user.first_name} ${user.last_name}`
+      if (user.first_name) return user.first_name
+      if (user.email) return user.email.split('@')[0]
+      return 'User'
     })
 
     const formatDate = (dateString) => {
@@ -223,9 +196,6 @@ export default {
         
         // Load recent bookings
         await loadRecentBookings()
-        
-        // Load featured vehicles
-        await loadFeaturedVehicles()
         
       } catch (error) {
         console.error('Error loading dashboard data:', error)
@@ -308,35 +278,6 @@ export default {
       }
     }
 
-    const loadFeaturedVehicles = async () => {
-      try {
-        // Fetch from actual API
-        const data = await apiStore.get('/vehicles')
-        const vehicles = data.data?.vehicles || data.vehicles || []
-        
-        // Take first 4 available vehicles for featured section
-        featuredVehicles.value = vehicles
-          .filter(vehicle => vehicle.status === 'available')
-          .slice(0, 4)
-          .map(vehicle => ({
-            ...vehicle,
-            // Construct image URL if image exists
-            imageUrl: vehicle.image ? `/images/vehicles/${vehicle.image}` : null
-          }))
-      } catch (error) {
-        console.error('Error loading featured vehicles:', error)
-        featuredVehicles.value = []
-      }
-    }
-
-    const selectVehicle = (vehicle) => {
-      // Navigate to booking page with selected vehicle
-      router.push({
-        name: 'book-vehicle',
-        params: { id: vehicle.id }
-      })
-    }
-
     const logout = () => {
       // Clear authentication data
       localStorage.removeItem('auth_token')
@@ -371,10 +312,8 @@ export default {
       loading,
       stats,
       recentBookings,
-      featuredVehicles,
       userName,
       formatDate,
-      selectVehicle,
       logout,
       getPlaceholderImage,
       handleImageError
@@ -819,6 +758,28 @@ export default {
 
 .btn-link:hover {
   color: #764ba2;
+}
+
+/* Warning state for booking limit */
+.stat-card.warning {
+  border: 2px solid #f59e0b;
+  background: linear-gradient(to bottom, #fff, #fef3c7);
+}
+
+.stat-card.warning .stat-icon {
+  background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%);
+}
+
+.limit-warning {
+  display: block;
+  color: #dc2626;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
+.limit-warning i {
+  margin-right: 0.25rem;
 }
 
 /* Responsive */

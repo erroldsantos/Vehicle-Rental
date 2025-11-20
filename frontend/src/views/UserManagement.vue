@@ -221,8 +221,8 @@
               </span>
             </td>
             <td>
-              <span :class="['badge', 'status-' + user.status]">
-                {{ formatStatus(user.status) }}
+              <span :class="['badge', 'status-' + (user.email_verified == 1 ? 'active' : 'inactive')]">
+                {{ user.email_verified == 1 ? 'Active' : 'Inactive' }}
               </span>
             </td>
             <td>

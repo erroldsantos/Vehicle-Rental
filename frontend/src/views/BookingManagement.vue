@@ -484,10 +484,16 @@ export default {
         const response = await apiStore.put(`/bookings/${editingBooking.value.id}`, bookingData)
         console.log('Update response:', response)
         
+        // Check if there's a warning (user has too many confirmed bookings)
+        if (response.warning) {
+          alert(response.warning)
+        }
+        
         // Update the booking in the list
+        const bookingToUpdate = response.booking || response
         const index = bookings.value.findIndex(b => b.id === editingBooking.value.id)
         if (index !== -1) {
-          bookings.value[index] = response
+          bookings.value[index] = bookingToUpdate
         }
         
         cancelEdit()
@@ -495,6 +501,7 @@ export default {
       } catch (error) {
         console.error('Failed to update booking:', error)
         console.error('Error details:', error.response || error)
+        alert('Failed to update booking: ' + (error.message || 'Unknown error'))
       }
     }
     

@@ -181,10 +181,12 @@
 
 <script>
 import { ref, onMounted, reactive } from 'vue'
+import { useApiStore } from '@/stores/api'
 
 export default {
   name: 'PaymentManagement',
   setup() {
+    const apiStore = useApiStore()
     const loading = ref(false)
     const createLoading = ref(false)
     const payments = ref([])

@@ -202,6 +202,19 @@ class Booking extends Model {
     }
     
     /**
+     * Get count of confirmed bookings for a user
+     */
+    public function getUserConfirmedBookingsCount($user_id) {
+        $query = "SELECT COUNT(*) as count FROM bookings 
+                  WHERE user_id = ? 
+                  AND status = 'confirmed'
+                  AND deleted_at IS NULL";
+        $stmt = $this->db->raw($query, [$user_id]);
+        $result = $stmt->fetch();
+        return $result['count'];
+    }
+    
+    /**
      * Create new booking
      */
     public function createBooking($data) {
@@ -211,6 +224,24 @@ class Booking extends Model {
             if (empty($data[$field])) {
                 throw new Exception("Field '$field' is required");
             }
+        }
+        
+        // Check if user's license is verified
+        $userStmt = $this->db->raw("SELECT license_status FROM users WHERE id = ? AND deleted_at IS NULL", [$data['user_id']]);
+        $userResult = $userStmt->fetch();
+        
+        if (!$userResult) {
+            throw new Exception("User not found");
+        }
+        
+        if ($userResult['license_status'] !== 'verified') {
+            throw new Exception("Your driver's license must be verified before you can book a vehicle. Please submit your license for verification.");
+        }
+        
+        // Check if user has reached maximum confirmed bookings limit (2)
+        $confirmedCount = $this->getUserConfirmedBookingsCount($data['user_id']);
+        if ($confirmedCount >= 2) {
+            throw new Exception("You have reached the maximum limit of 2 confirmed bookings. Please complete your existing bookings before making a new one.");
         }
         
         // Validate dates

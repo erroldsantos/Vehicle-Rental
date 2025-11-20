@@ -85,23 +85,6 @@
             </div>
             <span v-if="errors.phone" class="error-text">{{ errors.phone }}</span>
           </div>
-
-          <!-- Address -->
-          <div class="form-group">
-            <label for="address">Address</label>
-            <div class="input-wrapper">
-              <i class="fas fa-map-marker-alt"></i>
-              <input
-                id="address"
-                v-model="form.address"
-                type="text"
-                placeholder="Enter your address"
-                :disabled="loading"
-                class="form-input"
-              />
-            </div>
-            <span v-if="errors.address" class="error-text">{{ errors.address }}</span>
-          </div>
         </div>
 
         <div class="form-row">
@@ -232,7 +215,6 @@ export default {
       lastName: '',
       email: '',
       phone: '',
-      address: '',
       password: '',
       confirmPassword: '',
       acceptTerms: false
@@ -243,7 +225,6 @@ export default {
       lastName: '',
       email: '',
       phone: '',
-      address: '',
       password: '',
       confirmPassword: '',
       acceptTerms: ''

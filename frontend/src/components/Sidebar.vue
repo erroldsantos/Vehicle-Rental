@@ -49,7 +49,8 @@ export default {
       { name: 'vehicles', label: 'Vehicles', icon: 'fas fa-car' },
       { name: 'bookings', label: 'Bookings', icon: 'fas fa-calendar-alt' },
       { name: 'maintenance', label: 'Maintenance', icon: 'fas fa-tools' },
-      { name: 'payments', label: 'Payments', icon: 'fas fa-credit-card' }
+      { name: 'payments', label: 'Payments', icon: 'fas fa-credit-card' },
+      { name: 'licenses', label: 'License Verification', icon: 'fas fa-id-card' }
     ]
     
     return {

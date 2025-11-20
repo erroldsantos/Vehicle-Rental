@@ -131,10 +131,15 @@
               <button 
                 class="btn-book" 
                 @click="bookVehicle(vehicle)"
-                :disabled="vehicle.status === 'maintenance'"
+                :disabled="vehicle.status === 'maintenance' || !canBook"
+                :title="bookingLimitMessage"
               >
                 <i class="fas fa-calendar-check"></i>
-                {{ vehicle.status === 'maintenance' ? 'Unavailable' : 'Book Now' }}
+                {{ 
+                  vehicle.status === 'maintenance' ? 'Unavailable' : 
+                  (confirmedBookingsCount >= 2 ? 'Booking Limit Reached' : 
+                  (!isLicenseVerified ? 'License Required' : 'Book Now')) 
+                }}
               </button>
             </div>
           </div>
@@ -310,6 +315,7 @@ export default {
     const bookedDateRanges = ref([])
     const maintenanceDates = ref([])
     const dateConflictMessage = ref('')
+    const confirmedBookingsCount = ref(0)
     
     const showBookingModal = ref(false)
     const selectedVehicle = ref(null)
@@ -327,7 +333,35 @@ export default {
     })
 
     const userName = computed(() => {
-      return userInfo.value.name || 'User'
+      const user = userInfo.value
+      // Try different possible name fields
+      if (user.name) return user.name
+      if (user.first_name && user.last_name) return `${user.first_name} ${user.last_name}`
+      if (user.first_name) return user.first_name
+      if (user.email) return user.email.split('@')[0]
+      return 'User'
+    })
+    
+    const userLicenseStatus = computed(() => {
+      return userInfo.value.license_status || 'not_submitted'
+    })
+    
+    const isLicenseVerified = computed(() => {
+      return userLicenseStatus.value === 'verified'
+    })
+    
+    const canBook = computed(() => {
+      return isLicenseVerified.value && confirmedBookingsCount.value < 2
+    })
+    
+    const bookingLimitMessage = computed(() => {
+      if (!isLicenseVerified.value) {
+        return 'Please verify your driver\'s license to book vehicles'
+      }
+      if (confirmedBookingsCount.value >= 2) {
+        return 'You have reached the maximum limit of 2 confirmed bookings. Please complete your existing bookings first.'
+      }
+      return ''
     })
 
     const hasActiveFilters = computed(() => {
@@ -373,6 +407,36 @@ export default {
         alert('Failed to load vehicles. Please try again.')
       } finally {
         loading.value = false
+      }
+    }
+    
+    const loadUserInfo = async () => {
+      try {
+        const stored = localStorage.getItem('user_info')
+        if (!stored) return
+        
+        const user = JSON.parse(stored)
+        const response = await apiStore.get(`/users/${user.id}`)
+        
+        // Update localStorage with fresh data
+        localStorage.setItem('user_info', JSON.stringify(response.user || response))
+        
+        // Load user's confirmed bookings count
+        await loadConfirmedBookingsCount(user.id)
+      } catch (error) {
+        console.error('Error loading user info:', error)
+      }
+    }
+    
+    const loadConfirmedBookingsCount = async (userId) => {
+      try {
+        const response = await apiStore.get(`/bookings?user_id=${userId}&status=confirmed`)
+        const bookings = response.data?.bookings || response.bookings || []
+        confirmedBookingsCount.value = bookings.length
+        console.log('Confirmed bookings count:', confirmedBookingsCount.value, 'Bookings:', bookings)
+      } catch (error) {
+        console.error('Error loading confirmed bookings count:', error)
+        confirmedBookingsCount.value = 0
       }
     }
 
@@ -507,6 +571,20 @@ export default {
     }
 
     const bookVehicle = async (vehicle) => {
+      console.log('Book vehicle clicked. License verified:', isLicenseVerified.value, 'Confirmed bookings:', confirmedBookingsCount.value, 'Can book:', canBook.value)
+      
+      // Check if license is verified
+      if (!isLicenseVerified.value) {
+        alert('Please verify your driver\'s license before booking a vehicle. Go to your dashboard to submit your license.')
+        return
+      }
+      
+      // Check booking limit
+      if (confirmedBookingsCount.value >= 2) {
+        alert('You have reached the maximum limit of 2 confirmed bookings. Please complete your existing bookings before making a new one.')
+        return
+      }
+      
       selectedVehicle.value = vehicle
       showBookingModal.value = true
       dateConflictMessage.value = ''
@@ -628,7 +706,8 @@ export default {
       router.push({ name: 'login' })
     }
 
-    onMounted(() => {
+    onMounted(async () => {
+      await loadUserInfo()
       loadVehicles()
     })
 
@@ -646,6 +725,11 @@ export default {
       selectedVehicle,
       bookingForm,
       userName,
+      userLicenseStatus,
+      isLicenseVerified,
+      canBook,
+      confirmedBookingsCount,
+      bookingLimitMessage,
       hasActiveFilters,
       minDate,
       rentalDays,
@@ -663,7 +747,8 @@ export default {
       getPlaceholderImage,
       handleImageError,
       logout,
-      loadVehicles
+      loadVehicles,
+      loadUserInfo
     }
   }
 }

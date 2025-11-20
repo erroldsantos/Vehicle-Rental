@@ -79,6 +79,10 @@ $router->group('/api', function () use ($router) {
     $router->delete('/users/{id}', 'UsersController::delete');
     $router->post('/users/login', 'UsersController::login');
     $router->post('/users/register', 'UsersController::register');
+    
+    // License Verification - User endpoints
+    $router->post('/users/{id}/license/upload', 'UsersController::uploadLicense');
+    $router->get('/users/{id}/license/status', 'UsersController::getLicenseStatus');
 
     // Booking Management
     $router->get('/bookings', 'BookingsController::index');
@@ -119,5 +123,11 @@ $router->group('/api', function () use ($router) {
     $router->get('/admin/settings', 'AdminController::settings');
     $router->post('/admin/settings', 'AdminController::settings');
     $router->get('/admin/export', 'AdminController::export');
+    
+    // License Verification - Admin endpoints
+    $router->get('/admin/licenses/pending', 'AdminController::pendingLicenses');
+    $router->get('/admin/licenses/stats', 'AdminController::licenseStats');
+    $router->post('/admin/licenses/{userId}/verify', 'AdminController::verifyLicense');
+    $router->post('/admin/licenses/{userId}/reject', 'AdminController::rejectLicense');
 
 });

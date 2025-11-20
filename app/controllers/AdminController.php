@@ -368,9 +368,142 @@ class AdminController extends Controller {
                 ];
             }
             
+            // Check for pending license verifications
+            $licenseStats = $this->User->getLicenseStats();
+            if ($licenseStats['pending'] > 0) {
+                $alerts[] = [
+                    'type' => 'warning',
+                    'message' => $licenseStats['pending'] . ' driver license(s) pending verification',
+                    'created_at' => date('Y-m-d H:i:s')
+                ];
+            }
+            
             return $alerts;
         } catch (Exception $e) {
             return [];
+        }
+    }
+    
+    /**
+     * Get pending license verifications
+     * GET /api/admin/licenses/pending
+     */
+    public function pendingLicenses() {
+        $this->api->require_method('GET');
+        
+        try {
+            $pendingLicenses = $this->User->getPendingLicenses();
+            
+            // Convert to array if needed
+            $licenses = array_map(function($license) {
+                return is_object($license) ? (array)$license : $license;
+            }, $pendingLicenses);
+            
+            $this->api->respond([
+                'licenses' => $licenses,
+                'total' => count($licenses)
+            ]);
+        } catch (Exception $e) {
+            $this->api->respond_error('Failed to load pending licenses: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    /**
+     * Get license verification statistics
+     * GET /api/admin/licenses/stats
+     */
+    public function licenseStats() {
+        $this->api->require_method('GET');
+        
+        try {
+            $stats = $this->User->getLicenseStats();
+            $this->api->respond($stats);
+        } catch (Exception $e) {
+            $this->api->respond_error('Failed to load license stats: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    /**
+     * Verify a user's driver's license
+     * POST /api/admin/licenses/{userId}/verify
+     */
+    public function verifyLicense($userId) {
+        $this->api->require_method('POST');
+        
+        try {
+            if (empty($userId)) {
+                $this->api->respond_error('User ID is required', 400);
+                return;
+            }
+            
+            $input = $this->api->body();
+            
+            // Get admin ID from session or token (you should implement proper authentication)
+            // For now, we'll use a placeholder - replace with actual admin authentication
+            $adminId = $input['admin_id'] ?? 1; // Replace with actual authenticated admin ID
+            
+            $this->User->verifyLicense($userId, $adminId);
+            
+            // Get updated user
+            $user = $this->User->getUserById($userId);
+            $user = is_object($user) ? (array)$user : $user;
+            
+            // Remove sensitive data
+            if (isset($user['password'])) {
+                unset($user['password']);
+            }
+            
+            $this->api->respond([
+                'message' => 'License verified successfully',
+                'user' => $user
+            ]);
+            
+        } catch (Exception $e) {
+            $this->api->respond_error($e->getMessage(), 400);
+        }
+    }
+    
+    /**
+     * Reject a user's driver's license
+     * POST /api/admin/licenses/{userId}/reject
+     */
+    public function rejectLicense($userId) {
+        $this->api->require_method('POST');
+        
+        try {
+            if (empty($userId)) {
+                $this->api->respond_error('User ID is required', 400);
+                return;
+            }
+            
+            $input = $this->api->body();
+            
+            if (empty($input['reason'])) {
+                $this->api->respond_error('Rejection reason is required', 400);
+                return;
+            }
+            
+            // Get admin ID from session or token (you should implement proper authentication)
+            $adminId = $input['admin_id'] ?? 1; // Replace with actual authenticated admin ID
+            
+            $this->User->rejectLicense($userId, $adminId, $input['reason']);
+            
+            // Get updated user
+            $user = $this->User->getUserById($userId);
+            $user = is_object($user) ? (array)$user : $user;
+            
+            // Remove sensitive data
+            if (isset($user['password'])) {
+                unset($user['password']);
+            }
+            
+            $this->api->respond([
+                'message' => 'License rejected',
+                'user' => $user
+            ]);
+            
+        } catch (Exception $e) {
+            $this->api->respond_error($e->getMessage(), 400);
         }
     }
 }

@@ -11,6 +11,7 @@ import VehicleManagement from '../views/VehicleManagement.vue'
 import BookingManagement from '../views/BookingManagement.vue'
 import MaintenanceManagement from '../views/MaintenanceManagement.vue'
 import PaymentManagement from '../views/PaymentManagement.vue'
+import LicenseManagement from '../views/LicenseManagement.vue'
 
 const routes = [
   {
@@ -84,6 +85,12 @@ const routes = [
     name: 'payments',
     component: PaymentManagement,
     meta: { title: 'Payments', requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/licenses',
+    name: 'licenses',
+    component: LicenseManagement,
+    meta: { title: 'License Verification', requiresAuth: true, requiresAdmin: true }
   }
 ]
 

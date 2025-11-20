@@ -27,10 +27,18 @@ CREATE TABLE IF NOT EXISTS `users` (
   `email_verified` tinyint(1) DEFAULT 0,
   `verification_token` varchar(255) DEFAULT NULL,
   `verification_token_expires` datetime DEFAULT NULL,
+  `license_image` varchar(255) DEFAULT NULL,
+  `license_status` enum('not_submitted','pending','verified','rejected') DEFAULT 'not_submitted',
+  `license_submitted_at` datetime DEFAULT NULL,
+  `license_verified_at` datetime DEFAULT NULL,
+  `license_verified_by` int(11) DEFAULT NULL,
+  `license_rejection_reason` text DEFAULT NULL,
   `deleted_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`),
-  KEY `idx_verification_token` (`verification_token`)
+  KEY `idx_verification_token` (`verification_token`),
+  KEY `idx_license_status` (`license_status`),
+  CONSTRAINT `fk_license_verified_by` FOREIGN KEY (`license_verified_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ============================================

@@ -340,5 +340,123 @@ class User extends Model {
         
         return $errors;
     }
+    
+    /**
+     * Submit driver's license for verification
+     */
+    public function submitLicense($userId, $licenseImagePath) {
+        $user = $this->getUserById($userId);
+        if (!$user) {
+            throw new Exception("User not found");
+        }
+        
+        // Delete old license image if exists
+        if (!empty($user->license_image) && file_exists($user->license_image)) {
+            unlink($user->license_image);
+        }
+        
+        return $this->update($userId, [
+            'license_image' => $licenseImagePath,
+            'license_status' => 'pending',
+            'license_submitted_at' => date('Y-m-d H:i:s'),
+            'license_verified_at' => null,
+            'license_verified_by' => null,
+            'license_rejection_reason' => null
+        ]);
+    }
+    
+    /**
+     * Get all users with pending license verification
+     */
+    public function getPendingLicenses() {
+        $stmt = $this->db->raw(
+            "SELECT id, first_name, last_name, email, phone, license_image, license_submitted_at, license_status 
+             FROM users 
+             WHERE license_status = 'pending' AND deleted_at IS NULL 
+             ORDER BY license_submitted_at ASC"
+        );
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Verify user's driver's license
+     */
+    public function verifyLicense($userId, $adminId) {
+        $user = $this->getUserById($userId);
+        if (!$user) {
+            throw new Exception("User not found");
+        }
+        
+        // Convert array to object if necessary
+        if (is_array($user)) {
+            $user = (object) $user;
+        }
+        
+        if ($user->license_status !== 'pending') {
+            throw new Exception("License is not pending verification");
+        }
+        
+        return $this->update($userId, [
+            'license_status' => 'verified',
+            'license_verified_at' => date('Y-m-d H:i:s'),
+            'license_verified_by' => $adminId,
+            'license_rejection_reason' => null
+        ]);
+    }
+    
+    /**
+     * Reject user's driver's license
+     */
+    public function rejectLicense($userId, $adminId, $reason) {
+        $user = $this->getUserById($userId);
+        if (!$user) {
+            throw new Exception("User not found");
+        }
+        
+        // Convert array to object if necessary
+        if (is_array($user)) {
+            $user = (object) $user;
+        }
+        
+        if ($user->license_status !== 'pending') {
+            throw new Exception("License is not pending verification");
+        }
+        
+        return $this->update($userId, [
+            'license_status' => 'rejected',
+            'license_verified_at' => date('Y-m-d H:i:s'),
+            'license_verified_by' => $adminId,
+            'license_rejection_reason' => $reason
+        ]);
+    }
+    
+    /**
+     * Get license verification statistics
+     */
+    public function getLicenseStats() {
+        $stats = [];
+        
+        // Not submitted
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE license_status = 'not_submitted' AND role = 'user' AND deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['not_submitted'] = $result['count'];
+        
+        // Pending
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE license_status = 'pending' AND deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['pending'] = $result['count'];
+        
+        // Verified
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE license_status = 'verified' AND deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['verified'] = $result['count'];
+        
+        // Rejected
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE license_status = 'rejected' AND deleted_at IS NULL");
+        $result = $stmt->fetch();
+        $stats['rejected'] = $result['count'];
+        
+        return $stats;
+    }
 }
 ?>

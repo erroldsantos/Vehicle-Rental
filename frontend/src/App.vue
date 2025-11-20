@@ -93,7 +93,7 @@ export default {
     
     // Check if current route should show admin layout
     const isAdminRoute = computed(() => {
-      const adminRoutes = ['dashboard', 'users', 'vehicles', 'bookings', 'maintenance', 'payments']
+      const adminRoutes = ['dashboard', 'users', 'vehicles', 'bookings', 'maintenance', 'payments', 'licenses']
       return adminRoutes.includes(currentRoute.value)
     })
     

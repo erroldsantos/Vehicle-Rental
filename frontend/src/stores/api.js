@@ -43,7 +43,7 @@ export const useApiStore = defineStore('api', {
     },
 
     /**
-     * Generic GET request
+     *  GET request
      */
     async get(endpoint) {
       this.loading = true
@@ -60,7 +60,7 @@ export const useApiStore = defineStore('api', {
     },
 
     /**
-     * Generic POST request
+     * POST request
      */
     async post(endpoint, data) {
       this.loading = true
@@ -77,7 +77,7 @@ export const useApiStore = defineStore('api', {
     },
 
     /**
-     * Generic PUT request
+     * PUT request
      */
     async put(endpoint, data) {
       this.loading = true
@@ -94,7 +94,7 @@ export const useApiStore = defineStore('api', {
     },
 
     /**
-     * Generic DELETE request
+     * DELETE request
      */
     async delete(endpoint) {
       this.loading = true
@@ -104,6 +104,27 @@ export const useApiStore = defineStore('api', {
         return response.data
       } catch (error) {
         this.error = error.response?.data?.message || 'DELETE request failed'
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+
+    /**
+     * File upload request
+     */
+    async upload(endpoint, formData) {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.post(endpoint, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+        return response.data
+      } catch (error) {
+        this.error = error.response?.data?.message || 'Upload failed'
         throw error
       } finally {
         this.loading = false
