@@ -13,7 +13,7 @@
         <span class="stat-value">{{ stats.pending }}</span>
         <span class="stat-label">Pending Review</span>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" @click="activeTab = 'verified'" style="cursor: pointer;">
         <div class="stat-icon green">
           <i class="fas fa-check-circle"></i>
         </div>
@@ -29,7 +29,23 @@
       </div>
     </div>
     
-    <div class="pending-section">
+    <!-- Tabs -->
+    <div class="tabs">
+      <button 
+        :class="['tab-btn', { active: activeTab === 'pending' }]" 
+        @click="activeTab = 'pending'"
+      >
+        <i class="fas fa-clock"></i> Pending ({{ stats.pending }})
+      </button>
+      <button 
+        :class="['tab-btn', { active: activeTab === 'verified' }]" 
+        @click="activeTab = 'verified'; loadVerifiedLicenses()"
+      >
+        <i class="fas fa-check-circle"></i> Verified ({{ stats.verified }})
+      </button>
+    </div>
+    
+    <div v-show="activeTab === 'pending'" class="pending-section">
       <div class="section-header">
         <h3>Pending Verifications</h3>
         <button class="refresh" @click="loadPendingLicenses(); loadStats()"><i class="fas fa-sync"></i> Refresh</button>
@@ -76,8 +92,69 @@
       </div>
     </div>
     
+    <!-- Verified Users Section -->
+    <div v-show="activeTab === 'verified'" class="verified-section">
+      <div class="section-header">
+        <h3>Verified Licenses</h3>
+        <button class="refresh" @click="loadVerifiedLicenses(); loadStats()">
+          <i class="fas fa-sync"></i> Refresh
+        </button>
+      </div>
+      
+      <div v-if="verifiedLicenses.length === 0" class="empty">
+        No verified licenses yet.
+      </div>
+      
+      <div v-else class="license-cards">
+        <div v-for="user in verifiedLicenses" :key="user.id" class="license-card verified-card">
+          <div class="card-left">
+            <div class="user-avatar verified-avatar">
+              <i class="fas fa-check"></i>
+            </div>
+            <div class="user-info">
+              <h4>{{ user.name }}</h4>
+              <p class="email">{{ user.email }}</p>
+              <p class="phone"><i class="fas fa-phone"></i> {{ user.phone }}</p>
+              <p class="verified-date">
+                <i class="fas fa-calendar-check"></i> Verified: {{ formatDate(user.license_verified_at) }}
+              </p>
+            </div>
+          </div>
+          
+          <div class="card-center">
+            <img
+              v-if="user.license_image"
+              :src="getImageUrl(user.license_image)"
+              :alt="`${user.name}'s license`"
+              class="license-img"
+              @click="openImageModal(user)"
+            />
+            <button class="view-full" @click="openImageModal(user)">
+              <i class="fas fa-search"></i> View Full Size
+            </button>
+          </div>
+          
+          <div class="card-right">
+            <div class="verified-badge">
+              <i class="fas fa-shield-check"></i>
+              <span>Verified</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <div v-if="imageModal.show" class="modal" @click.self="closeImageModal">
-      <img :src="getImageUrl(imageModal.license?.license_image)" alt="Full Size License" />
+      <div class="modal-content">
+        <button class="modal-close" @click="closeImageModal">
+          <i class="fas fa-times"></i>
+        </button>
+        <img :src="getImageUrl(imageModal.license?.license_image)" alt="Full Size License" />
+        <div class="modal-info">
+          <h3>{{ imageModal.license?.name }}</h3>
+          <p>{{ imageModal.license?.email }}</p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -93,6 +170,8 @@ export default {
     const loading = ref(false)
     const processing = ref(false)
     const pendingLicenses = ref([])
+    const verifiedLicenses = ref([])
+    const activeTab = ref('pending')
     const stats = ref({
       pending: 0,
       verified: 0,
@@ -141,6 +220,19 @@ export default {
         stats.value = response
       } catch (error) {
         console.error('Error loading stats:', error)
+      }
+    }
+
+    const loadVerifiedLicenses = async () => {
+      loading.value = true
+      try {
+        const response = await apiStore.get('/admin/licenses/verified')
+        verifiedLicenses.value = response.licenses || []
+      } catch (error) {
+        console.error('Error loading verified licenses:', error)
+        showAlert('error', 'Failed to load verified licenses')
+      } finally {
+        loading.value = false
       }
     }
 
@@ -298,12 +390,15 @@ export default {
       loading,
       processing,
       pendingLicenses,
+      verifiedLicenses,
+      activeTab,
       stats,
       verifyModal,
       rejectModal,
       imageModal,
       alert,
       loadPendingLicenses,
+      loadVerifiedLicenses,
       loadStats,
       openVerifyModal,
       closeVerifyModal,
@@ -505,6 +600,141 @@ export default {
   color: #95a5a6 !important;
   font-size: 0.75rem !important;
   margin-top: 0.5rem !important;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e8e8e8;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tab-btn:hover {
+  color: #6c5ce7;
+}
+
+.tab-btn.active {
+  color: #6c5ce7;
+  border-bottom-color: #6c5ce7;
+}
+
+.verified-section {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  padding: 1.5rem;
+}
+
+.verified-card {
+  background: #f0fdf4 !important;
+  border: 1px solid #86efac !important;
+}
+
+.verified-avatar {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+}
+
+.verified-date {
+  color: #059669 !important;
+  font-weight: 500;
+}
+
+.verified-badge {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.verified-badge i {
+  font-size: 1.5rem;
+}
+
+.verified-badge span {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.modal-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.modal-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: #fff;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #2c3e50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: #e74c3c;
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.modal-content img {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+.modal-info {
+  background: #fff;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.modal-info h3 {
+  margin: 0 0 0.25rem 0;
+  color: #2c3e50;
+}
+
+.modal-info p {
+  margin: 0;
+  color: #7f8c8d;
+  font-size: 0.9rem;
 }
 
 .card-center {

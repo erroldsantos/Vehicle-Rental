@@ -500,8 +500,9 @@ export default {
         await loadBookings() // Reload to get updated stats
       } catch (error) {
         console.error('Failed to update booking:', error)
-        console.error('Error details:', error.response || error)
-        alert('Failed to update booking: ' + (error.message || 'Unknown error'))
+        console.error('Error details:', error.response)
+        const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Unknown error'
+        alert('Failed to update booking: ' + errorMsg)
       }
     }
     
@@ -597,6 +598,8 @@ export default {
       editingBooking,
       availableUsers,
       availableVehicles,
+      minDate,
+      minEditStartDate,
       isFormValid,
       estimatedCost,
       loadBookings,

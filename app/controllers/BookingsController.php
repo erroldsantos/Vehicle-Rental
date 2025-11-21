@@ -229,8 +229,8 @@ class BookingsController extends Controller {
                 return;
             }
             
-            if ($start_date >= $end_date) {
-                $this->api->respond_error('End date must be after start date', 400);
+            if ($start_date > $end_date) {
+                $this->api->respond_error('End date must be on or after start date', 400);
                 return;
             }
             

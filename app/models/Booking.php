@@ -248,8 +248,8 @@ class Booking extends Model {
         $start_date = $data['start_date'];
         $end_date = $data['end_date'];
         
-        if ($start_date >= $end_date) {
-            throw new Exception("End date must be after start date");
+        if ($start_date > $end_date) {
+            throw new Exception("End date must be on or after start date");
         }
         
         if ($start_date < date('Y-m-d')) {
@@ -346,14 +346,14 @@ class Booking extends Model {
         
         if (isset($data['end_date'])) {
             $start_date = $data['start_date'] ?? $booking['start_date'];
-            if ($start_date >= $data['end_date']) {
-                throw new Exception("End date must be after start date");
+            if ($start_date > $data['end_date']) {
+                throw new Exception("End date must be on or after start date");
             }
         }
         
         if (isset($data['start_date']) && isset($data['end_date'])) {
-            if ($data['start_date'] >= $data['end_date']) {
-                throw new Exception("End date must be after start date");
+            if ($data['start_date'] > $data['end_date']) {
+                throw new Exception("End date must be on or after start date");
             }
         }
         

@@ -138,12 +138,6 @@ export default {
       checkAuth()
       
       await apiStore.checkConnection()
-      
-      if (apiStore.connected) {
-        showAlert('Connected to LavaLust API', 'success')
-      } else {
-        showAlert('Failed to connect to API', 'error')
-      }
     })
     
     const showAlert = (message, type) => {

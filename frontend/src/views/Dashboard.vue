@@ -47,6 +47,54 @@
       </div>
     </div>
 
+    <!-- Pending Bookings -->
+    <div class="dashboard-section pending-section">
+      <div class="section-header">
+        <h2><i class="fas fa-clock"></i> Pending Bookings</h2>
+        <a href="#" class="view-all-link" @click.prevent="navigateToBookings">View All →</a>
+      </div>
+      <div v-if="loadingPending" class="loading-state">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading pending bookings...</p>
+      </div>
+      <div v-else-if="pendingBookings.length === 0" class="empty-state">
+        <i class="fas fa-calendar-alt"></i>
+        <p>No pending bookings</p>
+      </div>
+      <div v-else class="bookings-table">
+        <div class="table-row header-row">
+          <span>Reference</span>
+          <span>Customer</span>
+          <span>Vehicle</span>
+          <span>Start Date</span>
+          <span>End Date</span>
+          <span>Amount</span>
+          <span>Actions</span>
+        </div>
+        <div class="table-row pending-row" v-for="booking in pendingBookings" :key="booking.id">
+          <span class="reference">{{ booking.booking_reference }}</span>
+          <span>{{ booking.first_name }} {{ booking.last_name }}</span>
+          <span>{{ booking.brand }} {{ booking.model }}</span>
+          <span>{{ formatDate(booking.start_date) }}</span>
+          <span>{{ formatDate(booking.end_date) }}</span>
+          <span>₱{{ parseFloat(booking.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+          <span class="action-buttons">
+            <button 
+              class="btn-confirm" 
+              @click="confirmBooking(booking)" 
+              title="Confirm Booking"
+              :disabled="confirmingId === booking.id"
+            >
+              <i class="fas fa-check"></i>
+            </button>
+            <button class="btn-view" @click="viewBookingDetails(booking)" title="View Details">
+              <i class="fas fa-eye"></i>
+            </button>
+          </span>
+        </div>
+      </div>
+    </div>
+
     <!-- Confirmed Bookings -->
     <div class="dashboard-section">
       <div class="section-header">
@@ -168,7 +216,10 @@ export default {
     })
 
     const confirmedBookings = ref([])
+    const pendingBookings = ref([])
     const loading = ref(true)
+    const loadingPending = ref(true)
+    const confirmingId = ref(null)
     const showDetailsModal = ref(false)
     const selectedBooking = ref(null)
 
@@ -223,6 +274,7 @@ export default {
         await Promise.all([
           loadVehicleStats(),
           loadBookingStats(),
+          loadPendingBookings(),
           loadConfirmedBookings(),
           loadMaintenanceStats()
         ])
@@ -285,6 +337,54 @@ export default {
       }
     }
 
+    const loadPendingBookings = async () => {
+      loadingPending.value = true
+      try {
+        const data = await apiStore.get('/bookings')
+        const bookings = data.bookings || data.data?.bookings || []
+        
+        // Get only pending bookings and sort by creation date (newest first)
+        const pending = bookings
+          .filter(booking => booking.status === 'pending')
+          .sort((a, b) => new Date(b.created_at || b.start_date) - new Date(a.created_at || a.start_date))
+          .slice(0, 10)  // Show latest 10 pending bookings
+        
+        pendingBookings.value = pending
+      } catch (error) {
+        console.error('Error loading pending bookings:', error)
+      } finally {
+        loadingPending.value = false
+      }
+    }
+
+    const confirmBooking = async (booking) => {
+      if (!confirm(`Confirm booking ${booking.booking_reference}?`)) {
+        return
+      }
+
+      confirmingId.value = booking.id
+      try {
+        await apiStore.put(`/bookings/${booking.id}`, {
+          status: 'confirmed'
+        })
+        
+        // Reload both pending and confirmed bookings
+        await Promise.all([
+          loadPendingBookings(),
+          loadConfirmedBookings(),
+          loadBookingStats()
+        ])
+        
+        alert('Booking confirmed successfully!')
+      } catch (error) {
+        console.error('Error confirming booking:', error)
+        const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Unknown error'
+        alert('Failed to confirm booking: ' + errorMsg)
+      } finally {
+        confirmingId.value = null
+      }
+    }
+
     const loadMaintenanceStats = async () => {
       try {
         const data = await apiStore.get('/maintenance')
@@ -311,7 +411,10 @@ export default {
     return {
       stats,
       confirmedBookings,
+      pendingBookings,
       loading,
+      loadingPending,
+      confirmingId,
       showDetailsModal,
       selectedBooking,
       quickAction,
@@ -320,13 +423,110 @@ export default {
       formatDate,
       viewBookingDetails,
       closeDetailsModal,
-      editBooking
+      editBooking,
+      confirmBooking
     }
   }
 }
 </script>
 
 <style scoped>
+/* Dashboard Layout */
+.dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+/* Quick Actions Section */
+.quick-actions-section {
+  margin-bottom: 30px;
+}
+
+.quick-actions-section h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.action-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.action-btn i {
+  font-size: 16px;
+}
+
+/* Dashboard Sections */
+.dashboard-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.section-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.view-all-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.view-all-link:hover {
+  color: #2563eb;
+}
+
 /* Loading and Empty States */
 .loading-state, .empty-state {
   text-align: center;
@@ -464,6 +664,79 @@ export default {
 
 .btn-view i {
   margin: 0;
+}
+
+/* Pending Bookings Styles */
+.pending-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+.pending-section .section-header h2 {
+  color: #1f2937;
+}
+
+.pending-section .section-header h2 i {
+  color: #f59e0b;
+  margin-right: 0.5rem;
+}
+
+.pending-row {
+  background: white !important;
+}
+
+.pending-row:hover {
+  background: #f9fafb !important;
+}
+
+.pending-row .reference {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.btn-confirm {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  min-width: 40px;
+}
+
+.btn-confirm:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.btn-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-confirm i {
+  font-size: 14px;
+}
+
+/* Adjust grid for pending bookings with two action buttons */
+.pending-section .bookings-table .table-row {
+  grid-template-columns: 140px 1.2fr 1.2fr 120px 120px 130px 120px;
 }
 
 /* Modal Styles */

@@ -231,33 +231,19 @@
               </ul>
             </div>
 
-            <div class="form-group">
-              <label for="pickup_location">
-                <i class="fas fa-map-marker-alt"></i>
-                Pickup Location
-              </label>
-              <input 
-                type="text" 
-                id="pickup_location"
-                v-model="bookingForm.pickup_location"
-                placeholder="Enter pickup location"
-                required
-              >
-            </div>
+            <LocationPicker 
+              id="pickup_location"
+              label="Pickup Location"
+              placeholder="Click to select pickup location on map"
+              v-model="pickupLocation"
+            />
 
-            <div class="form-group">
-              <label for="dropoff_location">
-                <i class="fas fa-map-marker-alt"></i>
-                Drop-off Location
-              </label>
-              <input 
-                type="text" 
-                id="dropoff_location"
-                v-model="bookingForm.dropoff_location"
-                placeholder="Enter drop-off location"
-                required
-              >
-            </div>
+            <LocationPicker 
+              id="dropoff_location"
+              label="Drop-off Location"
+              placeholder="Click to select drop-off location on map"
+              v-model="dropoffLocation"
+            />
 
             <div class="booking-summary" v-if="rentalDays > 0">
               <div class="summary-row">
@@ -294,9 +280,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useApiStore } from '@/stores/api'
+import LocationPicker from '@/components/LocationPicker.vue'
 
 export default {
   name: 'BrowseVehicles',
+  components: {
+    LocationPicker
+  },
   setup() {
     const router = useRouter()
     const apiStore = useApiStore()
@@ -319,6 +309,8 @@ export default {
     
     const showBookingModal = ref(false)
     const selectedVehicle = ref(null)
+    const pickupLocation = ref({ address: '', lat: null, lng: null })
+    const dropoffLocation = ref({ address: '', lat: null, lng: null })
     const bookingForm = ref({
       start_date: '',
       end_date: '',
@@ -621,6 +613,16 @@ export default {
         return
       }
 
+      // Validate locations are selected
+      if (!pickupLocation.value.address) {
+        alert('Please select a pickup location on the map')
+        return
+      }
+      if (!dropoffLocation.value.address) {
+        alert('Please select a drop-off location on the map')
+        return
+      }
+
       // Final check for date conflicts
       checkDateAvailability()
       if (dateConflictMessage.value) {
@@ -635,8 +637,8 @@ export default {
           vehicle_id: selectedVehicle.value.id,
           start_date: bookingForm.value.start_date,
           end_date: bookingForm.value.end_date,
-          pickup_location: bookingForm.value.pickup_location,
-          dropoff_location: bookingForm.value.dropoff_location,
+          pickup_location: pickupLocation.value.address,
+          dropoff_location: dropoffLocation.value.address,
           total_amount: totalAmount.value,
           status: 'pending'
         }
@@ -660,6 +662,8 @@ export default {
       bookedDateRanges.value = []
       maintenanceDates.value = []
       dateConflictMessage.value = ''
+      pickupLocation.value = { address: '', lat: null, lng: null }
+      dropoffLocation.value = { address: '', lat: null, lng: null }
       bookingForm.value = {
         start_date: '',
         end_date: '',
@@ -724,6 +728,8 @@ export default {
       showBookingModal,
       selectedVehicle,
       bookingForm,
+      pickupLocation,
+      dropoffLocation,
       userName,
       userLicenseStatus,
       isLicenseVerified,

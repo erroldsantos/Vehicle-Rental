@@ -424,6 +424,30 @@ class AdminController extends Controller {
     }
     
     /**
+     * Get all verified licenses
+     * GET /api/admin/licenses/verified
+     */
+    public function verifiedLicenses() {
+        $this->api->require_method('GET');
+        
+        try {
+            $verifiedLicenses = $this->User->getVerifiedLicenses();
+            
+            // Convert to array if needed
+            $licenses = array_map(function($license) {
+                return is_object($license) ? (array)$license : $license;
+            }, $verifiedLicenses);
+            
+            $this->api->respond([
+                'licenses' => $licenses,
+                'total' => count($licenses)
+            ]);
+        } catch (Exception $e) {
+            $this->api->respond_error('Failed to load verified licenses: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    /**
      * Verify a user's driver's license
      * POST /api/admin/licenses/{userId}/verify
      */

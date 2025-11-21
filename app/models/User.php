@@ -366,14 +366,43 @@ class User extends Model {
     }
     
     /**
-     * Get all users with pending license verification
+     * Get all pending driver's licenses for verification
      */
     public function getPendingLicenses() {
         $stmt = $this->db->raw(
-            "SELECT id, first_name, last_name, email, phone, license_image, license_submitted_at, license_status 
+            "SELECT id, 
+                    CONCAT(first_name, ' ', last_name) as name,
+                    first_name, 
+                    last_name, 
+                    email, 
+                    phone, 
+                    license_image, 
+                    license_submitted_at, 
+                    license_status 
              FROM users 
              WHERE license_status = 'pending' AND deleted_at IS NULL 
              ORDER BY license_submitted_at ASC"
+        );
+        return $stmt->fetchAll();
+    }
+    
+    /**
+     * Get all verified driver's licenses
+     */
+    public function getVerifiedLicenses() {
+        $stmt = $this->db->raw(
+            "SELECT id, 
+                    CONCAT(first_name, ' ', last_name) as name,
+                    first_name, 
+                    last_name, 
+                    email, 
+                    phone, 
+                    license_image, 
+                    license_verified_at, 
+                    license_status 
+             FROM users 
+             WHERE license_status = 'verified' AND deleted_at IS NULL 
+             ORDER BY license_verified_at DESC"
         );
         return $stmt->fetchAll();
     }

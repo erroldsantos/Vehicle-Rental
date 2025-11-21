@@ -126,6 +126,7 @@ $router->group('/api', function () use ($router) {
     
     // License Verification - Admin endpoints
     $router->get('/admin/licenses/pending', 'AdminController::pendingLicenses');
+    $router->get('/admin/licenses/verified', 'AdminController::verifiedLicenses');
     $router->get('/admin/licenses/stats', 'AdminController::licenseStats');
     $router->post('/admin/licenses/{userId}/verify', 'AdminController::verifyLicense');
     $router->post('/admin/licenses/{userId}/reject', 'AdminController::rejectLicense');

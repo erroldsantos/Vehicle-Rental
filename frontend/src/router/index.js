@@ -15,10 +15,14 @@ import LicenseManagement from '../views/LicenseManagement.vue'
 
 const routes = [
   {
-    path: '/login',
+    path: '/',
     name: 'login',
     component: Login,
     meta: { title: 'Login', requiresGuest: true }
+  },
+  {
+    path: '/login',
+    redirect: '/'
   },
   {
     path: '/signup',
@@ -33,7 +37,7 @@ const routes = [
     meta: { title: 'Verify Email' }
   },
   {
-    path: '/',
+    path: '/dashboard',
     name: 'dashboard',
     component: Dashboard,
     meta: { title: 'Admin Dashboard', requiresAuth: true, requiresAdmin: true }
@@ -119,6 +123,20 @@ router.beforeEach((to, from, next) => {
   const authenticated = isAuthenticated()
   const userRole = getUserRole()
   
+  // If trying to access root path
+  if (to.path === '/') {
+    if (authenticated) {
+      // Redirect authenticated users to their dashboard
+      if (userRole === 'admin') {
+        next({ name: 'dashboard' })
+      } else {
+        next({ name: 'user-dashboard' })
+      }
+      return
+    }
+    // Not authenticated, allow access to login (which is at '/')
+  }
+  
   // Check if route requires authentication
   if (to.meta.requiresAuth && !authenticated) {
     next({ name: 'login' })
@@ -131,7 +149,7 @@ router.beforeEach((to, from, next) => {
     return
   }
   
-  // Check if route requires guest (not authenticated)
+  // Check if route requires guest (not authenticated) - like login/signup
   if (to.meta.requiresGuest && authenticated) {
     // Redirect to appropriate dashboard based on role
     if (userRole === 'admin') {
@@ -139,22 +157,6 @@ router.beforeEach((to, from, next) => {
     } else {
       next({ name: 'user-dashboard' })
     }
-    return
-  }
-  
-  // If trying to access root and authenticated, redirect to appropriate dashboard
-  if (to.path === '/' && !to.name && authenticated) {
-    if (userRole === 'admin') {
-      next({ name: 'dashboard' })
-    } else {
-      next({ name: 'user-dashboard' })
-    }
-    return
-  }
-  
-  // If trying to access root and not authenticated, redirect to login
-  if (to.path === '/' && !to.name && !authenticated) {
-    next({ name: 'login' })
     return
   }
   
