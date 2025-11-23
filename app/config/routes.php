@@ -46,6 +46,10 @@ defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 // Default route
 $router->get('/', 'Welcome::index');
 
+// Payment redirect landing pages (PayMongo success/failed)
+$router->get('/payment/success/{id}', 'PaymentController::success');
+$router->get('/payment/failed/{id}', 'PaymentController::failed');
+
 $router->group('/api', function () use ($router) {
 
     $router->get('/health', 'ApiController::health');
@@ -99,8 +103,12 @@ $router->group('/api', function () use ($router) {
     $router->get('/payments/stats', 'PaymentController::stats');
     $router->get('/payments/{id}', 'PaymentController::show');
     $router->post('/payments', 'PaymentController::create');
+    $router->post('/payments/booking', 'PaymentController::create_booking_payment');
     $router->put('/payments/{id}', 'PaymentController::update');
     $router->delete('/payments/{id}', 'PaymentController::delete');
+    
+    // PayMongo Webhook (no auth required)
+    $router->post('/webhook/paymongo', 'PaymentController::webhook');
 
     // Authentication
     $router->post('/auth/login', 'AuthController::login');

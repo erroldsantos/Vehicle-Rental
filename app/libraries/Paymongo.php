@@ -23,15 +23,29 @@ class Paymongo
         $this->_lava = lava_instance();
         
         // Load PayMongo configuration
-        $this->_lava->call->config('paymongo');
+        $this->_lava->config->load('paymongo');
         $this->secretKey = config_item('paymongo_secret_key');
         $this->publicKey = config_item('paymongo_public_key');
+        
+        error_log('PayMongo init - Secret key length: ' . strlen($this->secretKey ?? ''));
+        error_log('PayMongo init - Secret key prefix: ' . substr($this->secretKey ?? '', 0, 7));
         
         // Initialize logger
         $this->logger = load_class('logger', 'kernel');
         
+        // Verify secret key exists
+        if (empty($this->secretKey)) {
+            $this->logger->log('error', 'PayMongo', 'Secret key not configured', __FILE__, __LINE__);
+            throw new \Exception('PayMongo secret key not configured');
+        }
+        
         // Initialize PayMongo client
-        $this->client = new \Paymongo\PaymongoClient($this->secretKey);
+        try {
+            $this->client = new \Paymongo\PaymongoClient($this->secretKey);
+        } catch (\Exception $e) {
+            $this->logger->log('error', 'PayMongo Init', $e->getMessage(), $e->getFile(), $e->getLine());
+            throw $e;
+        }
     }
 
     /**
@@ -141,19 +155,47 @@ class Paymongo
         try {
             $amount = isset($data['amount']) ? (int)($data['amount'] * 100) : 0;
             
-            $source = $this->client->sources->create([
+            $sourceData = [
                 'amount' => $amount,
-                'currency' => 'PHP',
+                'currency' => $data['currency'] ?? 'PHP',
                 'type' => $data['type'] ?? 'gcash',
                 'redirect' => [
                     'success' => $data['success_url'] ?? (base_url() . 'payment/success'),
                     'failed' => $data['failed_url'] ?? (base_url() . 'payment/failed')
-                ],
-                'billing' => $data['billing'] ?? []
-            ]);
+                ]
+            ];
+            
+            // Add billing if provided
+            if (isset($data['billing']) && !empty($data['billing'])) {
+                $sourceData['billing'] = $data['billing'];
+            }
+            
+            // Add metadata if provided
+            if (isset($data['metadata']) && !empty($data['metadata'])) {
+                $sourceData['metadata'] = $data['metadata'];
+            }
+            
+            error_log('PayMongo createSource request: ' . json_encode($sourceData));
+            
+            $source = $this->client->sources->create($sourceData);
+            
+            error_log('PayMongo createSource response: ' . json_encode($source));
             
             return $source;
+        } catch (\Paymongo\Exceptions\BaseException $e) {
+            $errors = $e->getError();
+            $errorMessages = [];
+            foreach ($errors as $error) {
+                $errorMessages[] = $error->detail;
+            }
+            error_log('PayMongo Source Error: ' . implode(', ', $errorMessages));
+            error_log('PayMongo Source Trace: ' . $e->getTraceAsString());
+            $this->logger->log('error', 'PayMongo Source', implode(', ', $errorMessages), $e->getFile(), $e->getLine());
+            return false;
         } catch (\Exception $e) {
+            error_log('PayMongo Source Generic Error: ' . $e->getMessage());
+            error_log('PayMongo Source Code: ' . $e->getCode());
+            error_log('PayMongo Source Trace: ' . $e->getTraceAsString());
             $this->logger->log('error', 'PayMongo Source', $e->getMessage(), $e->getFile(), $e->getLine());
             return false;
         }

@@ -273,6 +273,120 @@
         </div>
       </div>
     </div>
+
+    <!-- Payment Modal -->
+    <div v-if="showPaymentModal" class="modal-overlay" @click="closePaymentModal">
+      <div class="modal-content payment-modal" @click.stop>
+        <div class="modal-header">
+          <h2>Complete Payment</h2>
+          <button class="btn-close" @click="closePaymentModal">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="payment-info">
+            <div class="booking-summary-card">
+              <h3>Booking Summary</h3>
+              <p><strong>Booking Reference:</strong> {{ currentBooking?.booking_reference }}</p>
+              <p><strong>Vehicle:</strong> {{ selectedVehicle?.brand }} {{ selectedVehicle?.model }}</p>
+              <p><strong>Rental Period:</strong> {{ rentalDays }} days</p>
+              <p class="total-amount"><strong>Total Amount:</strong> ₱{{ formatPrice(currentBooking?.total_amount || totalAmount) }}</p>
+            </div>
+
+            <form @submit.prevent="processPayment" class="payment-form">
+              <div class="form-group">
+                <label>
+                  <i class="fas fa-money-bill-wave"></i>
+                  Payment Type
+                </label>
+                <div class="radio-group">
+                  <label class="radio-option">
+                    <input 
+                      type="radio" 
+                      v-model="paymentForm.payment_type" 
+                      value="full"
+                    >
+                    <span class="radio-label">
+                      <strong>Full Payment</strong>
+                      <small>Pay 100% now (₱{{ formatPrice(currentBooking?.total_amount || totalAmount) }})</small>
+                    </span>
+                  </label>
+                  <label class="radio-option">
+                    <input 
+                      type="radio" 
+                      v-model="paymentForm.payment_type" 
+                      value="downpayment"
+                    >
+                    <span class="radio-label">
+                      <strong>30% Downpayment</strong>
+                      <small>Pay ₱{{ formatPrice((currentBooking?.total_amount || totalAmount) * 0.3) }} now, rest later</small>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>
+                  <i class="fas fa-credit-card"></i>
+                  Payment Method
+                </label>
+                <div class="payment-methods">
+                  <label class="payment-method-option">
+                    <input 
+                      type="radio" 
+                      v-model="paymentForm.payment_method" 
+                      value="gcash"
+                    >
+                    <span class="method-card">
+                      <i class="fab fa-google-wallet"></i>
+                      <strong>GCash</strong>
+                    </span>
+                  </label>
+                  <label class="payment-method-option">
+                    <input 
+                      type="radio" 
+                      v-model="paymentForm.payment_method" 
+                      value="paymaya"
+                    >
+                    <span class="method-card">
+                      <i class="fas fa-wallet"></i>
+                      <strong>PayMaya</strong>
+                    </span>
+                  </label>
+                  <label class="payment-method-option">
+                    <input 
+                      type="radio" 
+                      v-model="paymentForm.payment_method" 
+                      value="grab_pay"
+                    >
+                    <span class="method-card">
+                      <i class="fas fa-mobile-alt"></i>
+                      <strong>GrabPay</strong>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="payment-notice">
+                <i class="fas fa-info-circle"></i>
+                <p>You will be redirected to a secure payment page. Your booking will be automatically confirmed once payment is successful.</p>
+              </div>
+
+              <div class="modal-actions">
+                <button type="button" class="btn-secondary" @click="closePaymentModal">
+                  Cancel
+                </button>
+                <button type="submit" class="btn-primary" :disabled="processingPayment">
+                  <i class="fas fa-lock"></i>
+                  {{ processingPayment ? 'Processing...' : 'Proceed to Payment' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -308,6 +422,14 @@ export default {
     const confirmedBookingsCount = ref(0)
     
     const showBookingModal = ref(false)
+    const showPaymentModal = ref(false)
+    const currentBooking = ref(null)
+    const paymentForm = ref({
+      payment_type: 'full',
+      payment_method: 'gcash'
+    })
+    const processingPayment = ref(false)
+    
     const selectedVehicle = ref(null)
     const pickupLocation = ref({ address: '', lat: null, lng: null })
     const dropoffLocation = ref({ address: '', lat: null, lng: null })
@@ -643,11 +765,12 @@ export default {
           status: 'pending'
         }
 
-        await apiStore.post('/bookings', bookingData)
+        const response = await apiStore.post('/bookings', bookingData)
         
-        alert('Booking request submitted successfully! You will receive a confirmation soon.')
+        // Store booking details and show payment modal
+        currentBooking.value = response
         closeBookingModal()
-        router.push({ name: 'user-dashboard' })
+        showPaymentModal.value = true
       } catch (error) {
         console.error('Error creating booking:', error)
         alert('Failed to create booking. Please try again.')
@@ -670,6 +793,48 @@ export default {
         pickup_location: '',
         dropoff_location: ''
       }
+    }
+
+    const processPayment = async () => {
+      if (processingPayment.value || !currentBooking.value) return
+
+      processingPayment.value = true
+      try {
+        const response = await apiStore.post('/payments/booking', {
+          booking_id: currentBooking.value.id,
+          payment_type: paymentForm.value.payment_type,
+          payment_method: paymentForm.value.payment_method
+        })
+
+        console.log('Payment response:', response)
+
+        // Handle different response structures
+        const responseData = response.data || response
+        const redirectUrl = responseData.data?.redirect_url || responseData.redirect_url || responseData.checkout_url
+
+        // Redirect to PayMongo checkout
+        if (redirectUrl) {
+          window.location.href = redirectUrl
+        } else {
+          alert('Failed to create payment session. Please try again.')
+        }
+      } catch (error) {
+        console.error('Error processing payment:', error)
+        alert('Failed to initiate payment: ' + (error.response?.data?.message || error.response?.data?.error || error.message))
+      } finally {
+        processingPayment.value = false
+      }
+    }
+
+    const closePaymentModal = () => {
+      showPaymentModal.value = false
+      currentBooking.value = null
+      paymentForm.value = {
+        payment_type: 'full',
+        payment_method: 'gcash'
+      }
+      // Redirect to user dashboard
+      router.push({ name: 'user-dashboard' })
     }
 
     const formatPrice = (price) => {
@@ -726,6 +891,10 @@ export default {
       bookedDateRanges,
       dateConflictMessage,
       showBookingModal,
+      showPaymentModal,
+      currentBooking,
+      paymentForm,
+      processingPayment,
       selectedVehicle,
       bookingForm,
       pickupLocation,
@@ -748,6 +917,8 @@ export default {
       bookVehicle,
       submitBooking,
       closeBookingModal,
+      processPayment,
+      closePaymentModal,
       formatPrice,
       getFeaturesList,
       getPlaceholderImage,
@@ -1502,4 +1673,185 @@ export default {
     flex-direction: column;
   }
 }
+
+/* Payment Modal Styles */
+.payment-modal {
+  max-width: 600px;
+}
+
+.payment-info {
+  padding: 0;
+}
+
+.booking-summary-card {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.booking-summary-card h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.booking-summary-card p {
+  margin: 0.5rem 0;
+  color: #666;
+}
+
+.booking-summary-card .total-amount {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid #ddd;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.payment-form .form-group {
+  margin-bottom: 2rem;
+}
+
+.payment-form .form-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.radio-option {
+  display: flex;
+  align-items: flex-start;
+  padding: 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.radio-option:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.radio-option input[type="radio"] {
+  margin-top: 0.25rem;
+  margin-right: 1rem;
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"]:checked + .radio-label {
+  color: #667eea;
+}
+
+.radio-option:has(input:checked) {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.radio-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.radio-label strong {
+  font-size: 1rem;
+  color: #333;
+}
+
+.radio-label small {
+  color: #666;
+  font-size: 0.875rem;
+}
+
+.payment-methods {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.payment-method-option {
+  cursor: pointer;
+}
+
+.payment-method-option input[type="radio"] {
+  display: none;
+}
+
+.method-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.method-card i {
+  font-size: 2rem;
+  color: #667eea;
+}
+
+.method-card strong {
+  font-size: 0.875rem;
+  color: #333;
+}
+
+.payment-method-option input:checked + .method-card {
+  border-color: #667eea;
+  background: #f8f9ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.payment-method-option:hover .method-card {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.payment-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #e8f4fd;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.payment-notice i {
+  color: #2196f3;
+  margin-top: 0.125rem;
+}
+
+.payment-notice p {
+  margin: 0;
+  color: #1565c0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .payment-methods {
+    grid-template-columns: 1fr;
+  }
+  
+  .payment-modal {
+    max-width: 100%;
+  }
+}
 </style>
+

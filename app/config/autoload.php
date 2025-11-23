@@ -82,7 +82,7 @@ $autoload['libraries'] = array('database', 'session');
 |
 |	$autoload['helpers'] = array('url', 'file');
 */
-$autoload['helpers'] = array('mail');
+$autoload['helpers'] = array('mail', 'url');
 
 /*
 | -------------------------------------------------------------------

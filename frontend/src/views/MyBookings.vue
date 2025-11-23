@@ -151,6 +151,14 @@
               <i class="fas fa-times"></i>
               Cancel Booking
             </button>
+            <button 
+              v-if="booking.status === 'pending'"
+              class="btn-pay-now"
+              @click="initiatePayment(booking)"
+            >
+              <i class="fas fa-credit-card"></i>
+              Pay Now
+            </button>
             <button class="btn-view" @click="viewBookingDetails(booking)">
               <i class="fas fa-eye"></i>
               View Details
@@ -282,6 +290,131 @@
         </div>
       </div>
     </div>
+
+    <!-- Payment Modal -->
+    <div v-if="showPaymentModal" class="modal-overlay" @click="closePaymentModal">
+      <div class="modal-content payment-modal" @click.stop>
+        <div class="modal-header">
+          <h2>Payment Details</h2>
+          <button class="btn-close" @click="closePaymentModal">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="modal-body" v-if="selectedBooking">
+          <!-- Booking Summary -->
+          <div class="payment-section">
+            <div class="section-title">
+              <i class="fas fa-receipt"></i>
+              Booking Summary
+            </div>
+            <div class="summary-grid">
+              <div class="summary-item">
+                <span class="label">Booking</span>
+                <span class="value">{{ selectedBooking.booking_reference }}</span>
+              </div>
+              <div class="summary-item">
+                <span class="label">Customer</span>
+                <span class="value">{{ selectedBooking.first_name }} {{ selectedBooking.last_name }}</span>
+              </div>
+              <div class="summary-item">
+                <span class="label">Vehicle</span>
+                <span class="value">{{ selectedBooking.vehicle_name }}</span>
+              </div>
+              <div class="summary-item">
+                <span class="label">Total Amount</span>
+                <span class="value amount">₱{{ formatAmount(selectedBooking.total_amount) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment Method -->
+          <div class="payment-section">
+            <div class="section-title">
+              <i class="fas fa-credit-card"></i>
+              Payment Method
+            </div>
+            <div class="payment-methods">
+              <label class="method-option">
+                <input type="radio" value="gcash" v-model="paymentMethod">
+                <div class="method-card">
+                  <i class="fas fa-mobile-alt"></i>
+                  <span>GCash</span>
+                </div>
+              </label>
+              <label class="method-option">
+                <input type="radio" value="paymaya" v-model="paymentMethod">
+                <div class="method-card">
+                  <i class="fas fa-wallet"></i>
+                  <span>PayMaya</span>
+                </div>
+              </label>
+              <label class="method-option">
+                <input type="radio" value="grab_pay" v-model="paymentMethod">
+                <div class="method-card">
+                  <i class="fas fa-car"></i>
+                  <span>GrabPay</span>
+                </div>
+              </label>
+              <label class="method-option">
+                <input type="radio" value="card" v-model="paymentMethod">
+                <div class="method-card">
+                  <i class="fas fa-credit-card"></i>
+                  <span>Card</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Payment Type -->
+          <div class="payment-section">
+            <div class="section-title">
+              <i class="fas fa-money-check-alt"></i>
+              Payment Type
+            </div>
+            <div class="payment-types">
+              <label class="type-option">
+                <input type="radio" value="full" v-model="paymentType">
+                <div class="type-card">
+                  <span class="type-label">Full Payment</span>
+                  <span class="type-amount">₱{{ formatAmount(selectedBooking.total_amount) }}</span>
+                </div>
+              </label>
+              <label class="type-option">
+                <input type="radio" value="downpayment" v-model="paymentType">
+                <div class="type-card">
+                  <span class="type-label">Down Payment (50%)</span>
+                  <span class="type-amount">₱{{ formatAmount(selectedBooking.total_amount * 0.5) }}</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Payment Info -->
+          <div class="payment-info">
+            <i class="fas fa-info-circle"></i>
+            <p>You will be redirected to PayMongo's secure payment page to complete your {{ paymentType === 'full' ? 'full' : 'down' }} payment using {{ paymentMethod.toUpperCase().replace('_', ' ') }}.</p>
+          </div>
+
+          <!-- Actions -->
+          <div class="modal-actions">
+            <button class="btn-secondary" @click="closePaymentModal" :disabled="processingPayment">
+              <i class="fas fa-times"></i>
+              Cancel
+            </button>
+            <button 
+              class="btn-pay" 
+              @click="processPayment"
+              :disabled="processingPayment"
+            >
+              <i class="fas fa-spinner fa-spin" v-if="processingPayment"></i>
+              <i class="fas fa-lock" v-else></i>
+              {{ processingPayment ? 'Processing...' : 'Proceed to Payment' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -299,7 +432,11 @@ export default {
     const loading = ref(false)
     const bookings = ref([])
     const showDetailsModal = ref(false)
+    const showPaymentModal = ref(false)
     const selectedBooking = ref(null)
+    const paymentMethod = ref('gcash')
+    const paymentType = ref('full')
+    const processingPayment = ref(false)
 
     const userInfo = computed(() => {
       const stored = localStorage.getItem('user_info')
@@ -421,10 +558,47 @@ export default {
       event.target.src = '/images/vehicles/car-placeholder.jpg'
     }
 
+    const initiatePayment = (booking) => {
+      // Open payment details modal instead of redirect
+      selectedBooking.value = booking
+      showPaymentModal.value = true
+    }
+
     const logout = () => {
       localStorage.removeItem('auth_token')
       localStorage.removeItem('user_info')
       router.push({ name: 'login' })
+    }
+
+    const closePaymentModal = () => {
+      showPaymentModal.value = false
+      selectedBooking.value = null
+      paymentMethod.value = 'gcash'
+      paymentType.value = 'full'
+    }
+
+    const processPayment = async () => {
+      if (!selectedBooking.value) return
+      
+      processingPayment.value = true
+      try {
+        const response = await apiStore.post('/payments/booking', {
+          booking_id: selectedBooking.value.id,
+          payment_type: paymentType.value,
+          payment_method: paymentMethod.value
+        })
+
+        if (response.status === 'success' && response.data.redirect_url) {
+          // Redirect to PayMongo checkout
+          window.location.href = response.data.redirect_url
+        } else {
+          console.error('Payment creation failed:', response)
+        }
+      } catch (error) {
+        console.error('Error creating payment:', error)
+      } finally {
+        processingPayment.value = false
+      }
     }
 
     onMounted(() => {
@@ -435,7 +609,11 @@ export default {
       loading,
       bookings,
       showDetailsModal,
+      showPaymentModal,
       selectedBooking,
+      paymentMethod,
+      paymentType,
+      processingPayment,
       userName,
       stats,
       formatDate,
@@ -445,9 +623,12 @@ export default {
       cancelBooking,
       viewBookingDetails,
       closeDetailsModal,
+      closePaymentModal,
       cancelBookingFromModal,
       getPlaceholderImage,
       handleImageError,
+      initiatePayment,
+      processPayment,
       logout
     }
   }
@@ -792,6 +973,7 @@ export default {
 }
 
 .btn-cancel,
+.btn-pay-now,
 .btn-view {
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
@@ -812,6 +994,16 @@ export default {
 .btn-cancel:hover {
   background: #fc8181;
   color: white;
+}
+
+.btn-pay-now {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.btn-pay-now:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 .btn-view {
@@ -1068,5 +1260,164 @@ export default {
   .modal-actions .btn-cancel {
     width: 100%;
   }
+}
+
+/* Payment Modal Styles */
+.payment-modal {
+  max-width: 700px;
+}
+
+.payment-section {
+  margin-bottom: 1.5rem;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.summary-item {
+  background: #f7fafc;
+  padding: 1rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summary-item .label {
+  font-size: 0.875rem;
+  color: #718096;
+  font-weight: 500;
+}
+
+.summary-item .value {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.summary-item .value.amount {
+  color: #667eea;
+  font-size: 1.5rem;
+}
+
+.payment-methods,
+.payment-types {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.method-option,
+.type-option {
+  cursor: pointer;
+}
+
+.method-option input,
+.type-option input {
+  display: none;
+}
+
+.method-card,
+.type-card {
+  background: #f7fafc;
+  padding: 1.25rem;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  text-align: center;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.method-option input:checked + .method-card,
+.type-option input:checked + .type-card {
+  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+}
+
+.method-card:hover,
+.type-card:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+}
+
+.method-card i {
+  font-size: 1.5rem;
+  color: #667eea;
+}
+
+.method-card span {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 0.875rem;
+}
+
+.type-card {
+  padding: 1rem;
+}
+
+.type-label {
+  font-size: 0.875rem;
+  color: #718096;
+  font-weight: 500;
+}
+
+.type-amount {
+  font-weight: 600;
+  color: #667eea;
+  font-size: 1.125rem;
+}
+
+.payment-info {
+  background: #ebf8ff;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.payment-info i {
+  color: #3182ce;
+  margin-top: 0.25rem;
+}
+
+.payment-info p {
+  margin: 0;
+  color: #2c5282;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.btn-pay {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  font-size: 1rem;
+}
+
+.btn-pay:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-pay:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

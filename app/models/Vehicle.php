@@ -15,9 +15,7 @@ class Vehicle extends Model {
         return $this->find($id);
     }
     
-    /**
-     * Create new vehicle
-     */
+  
     public function createVehicle($data) {
         // Validate required fields
         $required = ['brand', 'model', 'year', 'plate_number', 'daily_rate'];
@@ -49,10 +47,8 @@ class Vehicle extends Model {
         // insert
         return $this->insert($data);
     }
-    
-    /**
-     * Update vehicle
-     */
+
+
     public function updateVehicle($id, $data) {
         // Check if vehicle exists
         $vehicle = $this->getVehicleById($id);
@@ -134,7 +130,7 @@ class Vehicle extends Model {
         $stmt = $this->db->raw($query, $params);
         return $stmt->fetchAll();
     }
-    
+
     /**
      * Get vehicle statistics
      */

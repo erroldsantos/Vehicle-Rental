@@ -1,5 +1,36 @@
 <?php
 define('PREVENT_DIRECT_ACCESS', TRUE);
+
+// Load environment variables from .env file
+if (file_exists(__DIR__ . '/.env')) {
+    $lines = file(__DIR__ . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        // Skip comments
+        if (strpos(trim($line), '#') === 0) {
+            continue;
+        }
+        // Parse KEY=VALUE
+        if (strpos($line, '=') !== false) {
+            list($key, $value) = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            // Remove quotes if present
+            $value = trim($value, '"\'');
+            // Set environment variable
+            if (!empty($key) && !getenv($key)) {
+                putenv("$key=$value");
+                $_ENV[$key] = $value;
+                $_SERVER[$key] = $value;
+            }
+        }
+    }
+}
+
+// Suppress PHP 8.2 deprecation warnings for third-party libraries
+error_reporting(E_ALL & ~E_DEPRECATED);
+ini_set('display_errors', '0'); // Don't display errors in output
+ini_set('log_errors', '1'); // Log errors to file instead
+
 /**
  * ------------------------------------------------------------------
  * LavaLust - an opensource lightweight PHP MVC Framework

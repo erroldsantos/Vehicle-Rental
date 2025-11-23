@@ -6,6 +6,9 @@ import Dashboard from '../views/Dashboard.vue'
 import UserDashboard from '../views/UserDashboard.vue'
 import BrowseVehicles from '../views/BrowseVehicles.vue'
 import MyBookings from '../views/MyBookings.vue'
+import PaymentForm from '../views/PaymentForm.vue'
+import PaymentSuccess from '../views/PaymentSuccess.vue'
+import PaymentFailed from '../views/PaymentFailed.vue'
 import UserManagement from '../views/UserManagement.vue'
 import VehicleManagement from '../views/VehicleManagement.vue'
 import BookingManagement from '../views/BookingManagement.vue'
@@ -59,6 +62,24 @@ const routes = [
     name: 'my-bookings',
     component: MyBookings,
     meta: { title: 'My Bookings', requiresAuth: true }
+  },
+  {
+    path: '/payment/:bookingId',
+    name: 'payment-form',
+    component: PaymentForm,
+    meta: { title: 'Complete Payment', requiresAuth: true }
+  },
+  {
+    path: '/payment/success/:id',
+    name: 'payment-success',
+    component: PaymentSuccess,
+    meta: { title: 'Payment Successful', requiresAuth: true }
+  },
+  {
+    path: '/payment/failed/:id',
+    name: 'payment-failed',
+    component: PaymentFailed,
+    meta: { title: 'Payment Failed', requiresAuth: true }
   },
   {
     path: '/users',

@@ -79,14 +79,6 @@
           <span>{{ formatDate(booking.end_date) }}</span>
           <span>₱{{ parseFloat(booking.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
           <span class="action-buttons">
-            <button 
-              class="btn-confirm" 
-              @click="confirmBooking(booking)" 
-              title="Confirm Booking"
-              :disabled="confirmingId === booking.id"
-            >
-              <i class="fas fa-check"></i>
-            </button>
             <button class="btn-view" @click="viewBookingDetails(booking)" title="View Details">
               <i class="fas fa-eye"></i>
             </button>
@@ -420,35 +412,6 @@ export default {
       }
     }
 
-    const confirmBooking = async (booking) => {
-      if (!confirm(`Confirm booking ${booking.booking_reference}?`)) {
-        return
-      }
-
-      confirmingId.value = booking.id
-      try {
-        await apiStore.put(`/bookings/${booking.id}`, {
-          status: 'confirmed'
-        })
-        
-        // Reload pending, active, and ongoing bookings
-        await Promise.all([
-          loadPendingBookings(),
-          loadActiveBookings(),
-          loadOngoingBookings(),
-          loadBookingStats()
-        ])
-        
-        alert('Booking confirmed successfully!')
-      } catch (error) {
-        console.error('Error confirming booking:', error)
-        const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Unknown error'
-        alert('Failed to confirm booking: ' + errorMsg)
-      } finally {
-        confirmingId.value = null
-      }
-    }
-
     const loadMaintenanceStats = async () => {
       try {
         const data = await apiStore.get('/maintenance')
@@ -490,8 +453,7 @@ export default {
       formatDate,
       viewBookingDetails,
       closeDetailsModal,
-      editBooking,
-      confirmBooking
+      editBooking
     }
   }
 }
@@ -784,7 +746,7 @@ export default {
   justify-content: flex-start;
 }
 
-.btn-confirm {
+.btn-pay {
   background: linear-gradient(135deg, #10b981, #059669);
   color: white;
   border: none;
@@ -801,19 +763,19 @@ export default {
   min-width: 40px;
 }
 
-.btn-confirm:hover:not(:disabled) {
+.btn-pay:hover:not(:disabled) {
   background: linear-gradient(135deg, #059669, #047857);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
-.btn-confirm:disabled {
+.btn-pay:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
 
-.btn-confirm i {
+.btn-pay i {
   font-size: 14px;
 }
 
