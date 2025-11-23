@@ -8,20 +8,30 @@ class Booking extends Model {
     protected $soft_delete = true;
     
     /** 
-     * Update expired bookings to completed status
+     * Update booking statuses based on current date
      */
-    public function updateExpiredBookings() {
-        // Update bookings where end_date has passed and status is still confirmed or pending
+    public function updateBookingStatuses() {
+        // 1. Update confirmed bookings to 'active' when start date is today or has passed
         $query = "UPDATE bookings 
-                  SET status = 'completed' 
-                  WHERE end_date < CURDATE() 
-                  AND status IN ('confirmed', 'pending') 
+                  SET status = 'active' 
+                  WHERE start_date <= CURDATE() 
+                  AND status = 'confirmed' 
                   AND deleted_at IS NULL";
-        
         $this->db->raw($query);
+        
+        // 2. Update returned bookings to 'completed' (manual return process)
+        // This will be handled manually by admin when vehicle is returned
         
         // Also update vehicle status for affected vehicles
         $this->updateAllVehicleStatuses();
+    }
+    
+    /** 
+     * Update expired bookings to completed status (legacy support)
+     */
+    public function updateExpiredBookings() {
+        // Call the new status update method
+        $this->updateBookingStatuses();
     }
     
     /**
@@ -30,13 +40,13 @@ class Booking extends Model {
     private function updateAllVehicleStatuses() {
         $this->db->raw("UPDATE vehicles SET status = 'available' WHERE status = 'rented' AND deleted_at IS NULL");
         
-        // Then set vehicles with active bookings to rented
+        // Then set vehicles with active or ongoing bookings to rented
         $query = "UPDATE vehicles v
                   SET status = 'rented'
                   WHERE EXISTS (
                       SELECT 1 FROM bookings b
                       WHERE b.vehicle_id = v.id
-                      AND b.status = 'confirmed'
+                      AND b.status IN ('active', 'ongoing')
                       AND b.start_date <= CURDATE()
                       AND b.end_date >= CURDATE()
                       AND b.deleted_at IS NULL
@@ -50,8 +60,8 @@ class Booking extends Model {
      * Get all bookings with user and vehicle details
      */
     public function getAllBookings($filters = []) {
-        // First, update any expired bookings to completed status
-        $this->updateExpiredBookings();
+        // First, update booking statuses based on current date
+        $this->updateBookingStatuses();
         
         $query = "SELECT b.id, b.booking_reference, b.user_id, b.vehicle_id, b.start_date, b.end_date, 
                          b.total_amount, b.status, b.notes, b.pickup_location, b.dropoff_location, b.created_at,
@@ -104,8 +114,8 @@ class Booking extends Model {
      * Get booking by ID with user and vehicle details
      */
     public function getBookingById($id) {
-        // Update expired bookings first
-        $this->updateExpiredBookings();
+        // Update booking statuses first
+        $this->updateBookingStatuses();
         
         $query = "SELECT b.*, 
                          u.first_name, u.last_name, u.email, u.phone,
@@ -125,7 +135,7 @@ class Booking extends Model {
     public function checkVehicleAvailability($vehicle_id, $start_date, $end_date, $exclude_booking_id = null) {
         $query = "SELECT COUNT(*) as count FROM bookings 
                   WHERE vehicle_id = ? 
-                  AND status IN ('pending', 'confirmed') 
+                  AND status IN ('pending', 'confirmed', 'active', 'ongoing') 
                   AND deleted_at IS NULL
                   AND (
                       (start_date <= ? AND end_date >= ?) OR
@@ -153,7 +163,7 @@ class Booking extends Model {
                   AND v.deleted_at IS NULL
                   AND v.id NOT IN (
                       SELECT DISTINCT b.vehicle_id FROM bookings b
-                      WHERE b.status IN ('pending', 'confirmed')
+                      WHERE b.status IN ('pending', 'confirmed', 'active', 'ongoing')
                       AND b.deleted_at IS NULL
                       AND (
                           (b.start_date <= ? AND b.end_date >= ?) OR
@@ -444,10 +454,10 @@ class Booking extends Model {
      * Update vehicle status based on active bookings
      */
     private function updateVehicleStatus($vehicle_id, $start_date, $end_date) {
-        // Check if vehicle has any active bookings
+        // Check if vehicle has any active or ongoing bookings
         $query = "SELECT COUNT(*) as count FROM bookings 
                   WHERE vehicle_id = ? 
-                  AND status = 'confirmed'
+                  AND status IN ('active', 'ongoing')
                   AND deleted_at IS NULL
                   AND start_date <= CURDATE() 
                   AND end_date >= CURDATE()";
@@ -473,7 +483,7 @@ class Booking extends Model {
         $stats['total_bookings'] = $result['count'];
         
         // Bookings by status
-        $statuses = ['pending', 'confirmed', 'completed', 'cancelled'];
+        $statuses = ['pending', 'confirmed', 'active', 'ongoing', 'returned', 'completed', 'cancelled'];
         foreach ($statuses as $status) {
             $stmt = $this->db->raw("SELECT COUNT(*) as count FROM bookings WHERE status = ? AND deleted_at IS NULL", [$status]);
             $result = $stmt->fetch();
@@ -481,7 +491,7 @@ class Booking extends Model {
         }
         
         // Revenue
-        $stmt = $this->db->raw("SELECT SUM(total_amount) as revenue FROM bookings WHERE status IN ('confirmed', 'completed') AND deleted_at IS NULL");
+        $stmt = $this->db->raw("SELECT SUM(total_amount) as revenue FROM bookings WHERE status IN ('confirmed', 'active', 'ongoing', 'returned', 'completed') AND deleted_at IS NULL");
         $result = $stmt->fetch();
         $stats['total_revenue'] = $result['revenue'] ?? 0;
         

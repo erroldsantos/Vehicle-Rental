@@ -43,14 +43,6 @@
             <label>Daily Rate (₱)</label>
             <input v-model="newVehicle.daily_rate" class="form-input" type="number" step="0.01" required placeholder="2000.00" />
           </div>
-          <div class="form-group">
-            <label>Status</label>
-            <select v-model="newVehicle.status" class="form-input" required>
-              <option value="available">Available</option>
-              <option value="rented">Rented</option>
-              <option value="maintenance">Maintenance</option>
-            </select>
-          </div>
         </div>
         <div class="form-actions">
           <button type="submit" class="action-btn">

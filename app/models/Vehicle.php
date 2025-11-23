@@ -7,33 +7,6 @@ class Vehicle extends Model {
     protected $soft_delete = true; // Enable soft deletes
     protected $fillable = ['brand', 'model', 'year', 'plate_number', 'daily_rate', 'status'];
 
-    /**
-     * Get all vehicles with optional filtering
-     */
-    public function getAllVehicles($filters = []) {
-        $query = "SELECT * FROM vehicles WHERE deleted_at IS NULL";
-        $params = [];
-        
-        // Apply status filter
-        if (!empty($filters['status'])) {
-            $query .= " AND status = ?";
-            $params[] = $filters['status'];
-        }
-        
-        // Apply search filter
-        if (!empty($filters['search'])) {
-            $search = '%' . $filters['search'] . '%';
-            $query .= " AND (brand LIKE ? OR model LIKE ? OR plate_number LIKE ?)";
-            $params[] = $search;
-            $params[] = $search;
-            $params[] = $search;
-        }
-        
-        $query .= " ORDER BY brand, model";
-        
-        $stmt = $this->db->raw($query, $params);
-        return $stmt->fetchAll();
-    }
     
     /**
      * Get vehicle by ID
@@ -132,6 +105,34 @@ class Vehicle extends Model {
         
         // soft delete
         return $this->soft_delete($id);
+    }
+
+    /**
+     * Get all vehicles with optional filtering
+     */
+    public function getAllVehicles($filters = []) {
+        $query = "SELECT * FROM vehicles WHERE deleted_at IS NULL";
+        $params = [];
+        
+        // Apply status filter
+        if (!empty($filters['status'])) {
+            $query .= " AND status = ?";
+            $params[] = $filters['status'];
+        }
+        
+        // Apply search filter
+        if (!empty($filters['search'])) {
+            $search = '%' . $filters['search'] . '%';
+            $query .= " AND (brand LIKE ? OR model LIKE ? OR plate_number LIKE ?)";
+            $params[] = $search;
+            $params[] = $search;
+            $params[] = $search;
+        }
+        
+        $query .= " ORDER BY brand, model";
+        
+        $stmt = $this->db->raw($query, $params);
+        return $stmt->fetchAll();
     }
     
     /**

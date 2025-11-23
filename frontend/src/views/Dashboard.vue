@@ -95,19 +95,19 @@
       </div>
     </div>
 
-    <!-- Confirmed Bookings -->
-    <div class="dashboard-section">
+    <!-- Active Bookings -->
+    <div class="dashboard-section active-section">
       <div class="section-header">
-        <h2>Confirmed Bookings</h2>
+        <h2><i class="fas fa-calendar-day"></i> Active Bookings</h2>
         <a href="#" class="view-all-link" @click.prevent="navigateToBookings">View All →</a>
       </div>
-      <div v-if="loading" class="loading-state">
+      <div v-if="loadingActive" class="loading-state">
         <i class="fas fa-spinner fa-spin"></i>
-        <p>Loading confirmed bookings...</p>
+        <p>Loading active bookings...</p>
       </div>
-      <div v-else-if="confirmedBookings.length === 0" class="empty-state">
-        <i class="fas fa-calendar-check"></i>
-        <p>No confirmed bookings found</p>
+      <div v-else-if="activeBookings.length === 0" class="empty-state">
+        <i class="fas fa-calendar-day"></i>
+        <p>No active bookings found</p>
       </div>
       <div v-else class="bookings-table">
         <div class="table-row header-row">
@@ -116,16 +116,52 @@
           <span>Vehicle</span>
           <span>Start Date</span>
           <span>End Date</span>
-          <span>Amount</span>
           <span>Actions</span>
         </div>
-        <div class="table-row" v-for="booking in confirmedBookings" :key="booking.id">
+        <div class="table-row" v-for="booking in activeBookings" :key="booking.id">
           <span>{{ booking.booking_reference }}</span>
           <span>{{ booking.first_name }} {{ booking.last_name }}</span>
           <span>{{ booking.brand }} {{ booking.model }}</span>
           <span>{{ formatDate(booking.start_date) }}</span>
           <span>{{ formatDate(booking.end_date) }}</span>
-          <span>₱{{ parseFloat(booking.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+          <span>
+            <button class="btn-view" @click="viewBookingDetails(booking)" title="View Details">
+              <i class="fas fa-eye"></i>
+            </button>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ongoing Bookings -->
+    <div class="dashboard-section ongoing-section">
+      <div class="section-header">
+        <h2><i class="fas fa-car-side"></i> Ongoing Bookings</h2>
+        <a href="#" class="view-all-link" @click.prevent="navigateToBookings">View All →</a>
+      </div>
+      <div v-if="loadingOngoing" class="loading-state">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading ongoing bookings...</p>
+      </div>
+      <div v-else-if="ongoingBookings.length === 0" class="empty-state">
+        <i class="fas fa-car-side"></i>
+        <p>No ongoing bookings found</p>
+      </div>
+      <div v-else class="bookings-table">
+        <div class="table-row header-row">
+          <span>Reference</span>
+          <span>Customer</span>
+          <span>Vehicle</span>
+          <span>Start Date</span>
+          <span>End Date</span>
+          <span>Actions</span>
+        </div>
+        <div class="table-row" v-for="booking in ongoingBookings" :key="booking.id">
+          <span>{{ booking.booking_reference }}</span>
+          <span>{{ booking.first_name }} {{ booking.last_name }}</span>
+          <span>{{ booking.brand }} {{ booking.model }}</span>
+          <span>{{ formatDate(booking.start_date) }}</span>
+          <span>{{ formatDate(booking.end_date) }}</span>
           <span>
             <button class="btn-view" @click="viewBookingDetails(booking)" title="View Details">
               <i class="fas fa-eye"></i>
@@ -215,10 +251,13 @@ export default {
       maintenanceDue: 0
     })
 
-    const confirmedBookings = ref([])
+    const activeBookings = ref([])
+    const ongoingBookings = ref([])
     const pendingBookings = ref([])
     const loading = ref(true)
     const loadingPending = ref(true)
+    const loadingActive = ref(true)
+    const loadingOngoing = ref(true)
     const confirmingId = ref(null)
     const showDetailsModal = ref(false)
     const selectedBooking = ref(null)
@@ -275,7 +314,8 @@ export default {
           loadVehicleStats(),
           loadBookingStats(),
           loadPendingBookings(),
-          loadConfirmedBookings(),
+          loadActiveBookings(),
+          loadOngoingBookings(),
           loadMaintenanceStats()
         ])
       } catch (error) {
@@ -320,20 +360,43 @@ export default {
       }
     }
 
-    const loadConfirmedBookings = async () => {
+    const loadActiveBookings = async () => {
+      loadingActive.value = true
       try {
         const data = await apiStore.get('/bookings')
         const bookings = data.bookings || data.data?.bookings || []
         
-        // Get only confirmed bookings and sort by start date
-        const confirmed = bookings
-          .filter(booking => booking.status === 'confirmed')
+        // Get only active bookings and sort by start date
+        const active = bookings
+          .filter(booking => booking.status === 'active')
           .sort((a, b) => new Date(a.start_date) - new Date(b.start_date))
-          .slice(0, 10)  // Show latest 10 confirmed bookings
+          .slice(0, 10)  // Show latest 10 active bookings
         
-        confirmedBookings.value = confirmed
+        activeBookings.value = active
       } catch (error) {
-        console.error('Error loading confirmed bookings:', error)
+        console.error('Error loading active bookings:', error)
+      } finally {
+        loadingActive.value = false
+      }
+    }
+
+    const loadOngoingBookings = async () => {
+      loadingOngoing.value = true
+      try {
+        const data = await apiStore.get('/bookings')
+        const bookings = data.bookings || data.data?.bookings || []
+        
+        // Get only ongoing bookings and sort by start date
+        const ongoing = bookings
+          .filter(booking => booking.status === 'ongoing')
+          .sort((a, b) => new Date(a.start_date) - new Date(b.start_date))
+          .slice(0, 10)  // Show latest 10 ongoing bookings
+        
+        ongoingBookings.value = ongoing
+      } catch (error) {
+        console.error('Error loading ongoing bookings:', error)
+      } finally {
+        loadingOngoing.value = false
       }
     }
 
@@ -368,10 +431,11 @@ export default {
           status: 'confirmed'
         })
         
-        // Reload both pending and confirmed bookings
+        // Reload pending, active, and ongoing bookings
         await Promise.all([
           loadPendingBookings(),
-          loadConfirmedBookings(),
+          loadActiveBookings(),
+          loadOngoingBookings(),
           loadBookingStats()
         ])
         
@@ -410,10 +474,13 @@ export default {
 
     return {
       stats,
-      confirmedBookings,
+      activeBookings,
+      ongoingBookings,
       pendingBookings,
       loading,
       loadingPending,
+      loadingActive,
+      loadingOngoing,
       confirmingId,
       showDetailsModal,
       selectedBooking,
@@ -623,6 +690,12 @@ export default {
   align-items: center;
 }
 
+/* Active and Ongoing sections without amount column */
+.active-section .bookings-table .table-row,
+.ongoing-section .bookings-table .table-row {
+  grid-template-columns: 140px 1.2fr 1.2fr 120px 120px 100px;
+}
+
 .bookings-table .table-row.header-row {
   background: #f9fafb;
   font-weight: 600;
@@ -678,6 +751,16 @@ export default {
 
 .pending-section .section-header h2 i {
   color: #f59e0b;
+  margin-right: 0.5rem;
+}
+
+.active-section .section-header h2 i {
+  color: #8b5cf6;
+  margin-right: 0.5rem;
+}
+
+.ongoing-section .section-header h2 i {
+  color: #3b82f6;
   margin-right: 0.5rem;
 }
 

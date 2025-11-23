@@ -49,6 +49,9 @@
               <option value="">All Status</option>
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
+              <option value="active">Active</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="returned">Returned</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
@@ -105,6 +108,9 @@
               <select v-model="newBooking.status" class="form-control" required>
                 <option value="pending">Pending</option>
                 <option value="confirmed">Confirmed</option>
+                <option value="active">Active</option>
+                <option value="ongoing">Ongoing</option>
+                <option value="returned">Returned</option>
               </select>
             </div>
             <div class="form-group">
@@ -143,11 +149,7 @@
             </div>
             <div class="form-group">
               <label>Customer:</label>
-              <select v-model="editingBooking.user_id" class="form-control" required>
-                <option v-for="user in availableUsers" :key="user.id" :value="user.id">
-                  {{ user.first_name }} {{ user.last_name }}
-                </option>
-              </select>
+              <input v-model="editingBooking.customer_name" class="form-control" type="text" readonly />
             </div>
           </div>
           
@@ -168,6 +170,9 @@
               <select v-model="editingBooking.status" class="form-control" required>
                 <option value="pending">Pending</option>
                 <option value="confirmed">Confirmed</option>
+                <option value="active">Active</option>
+                <option value="ongoing">Ongoing</option>
+                <option value="returned">Returned</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
               </select>
@@ -206,14 +211,13 @@
             <th>Vehicle</th>
             <th>Start Date</th>
             <th>End Date</th>
-            <th>Amount</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="bookings.length === 0">
-            <td colspan="8" class="no-data">No bookings found</td>
+            <td colspan="7" class="no-data">No bookings found</td>
           </tr>
           <tr v-for="booking in bookings" :key="booking.id">
             <td>{{ booking.booking_reference }}</td>
@@ -221,7 +225,6 @@
             <td>{{ booking.brand }} {{ booking.model }}<br><small>{{ booking.plate_number }}</small></td>
             <td>{{ formatDate(booking.start_date) }}</td>
             <td>{{ formatDate(booking.end_date) }}</td>
-            <td>₱{{ parseFloat(booking.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
             <td>
               <span :class="['badge', 'status-' + booking.status]">
                 {{ formatStatus(booking.status) }}
@@ -229,10 +232,16 @@
             </td>
             <td>
               <div class="action-buttons">
+                <button @click="markAsOngoing(booking.id)" class="btn btn-sm btn-success" title="Mark as Ongoing" v-if="booking.status === 'active'">
+                  <i class="fas fa-check"></i>
+                </button>
+                <button @click="markAsReturned(booking.id)" class="btn btn-sm btn-info" title="Mark as Returned" v-if="booking.status === 'ongoing'">
+                  <i class="fas fa-check"></i>
+                </button>
                 <button @click="editBooking(booking)" class="btn btn-sm" title="Edit Booking">
                   <i class="fas fa-edit"></i>
                 </button>
-                <button @click="cancelBooking(booking.id)" class="btn btn-sm btn-warning" title="Cancel Booking" v-if="booking.status !== 'cancelled'">
+                <button @click="cancelBooking(booking.id)" class="btn btn-sm btn-warning" title="Cancel Booking" v-if="['pending', 'confirmed', 'active'].includes(booking.status)">
                   <i class="fas fa-ban"></i>
                 </button>
                 <button @click="deleteBooking(booking.id)" class="btn btn-sm btn-danger" title="Delete Booking">
@@ -446,6 +455,7 @@ export default {
       // Ensure user_id and vehicle_id are properly set
       const userId = booking.user_id || null
       const vehicleId = booking.vehicle_id || null
+      const customerName = `${booking.first_name} ${booking.last_name}`
       
       console.log('Setting user_id to:', userId)
       console.log('Setting vehicle_id to:', vehicleId)
@@ -455,6 +465,7 @@ export default {
         booking_reference: booking.booking_reference,
         user_id: userId,
         vehicle_id: vehicleId,
+        customer_name: customerName,
         start_date: booking.start_date,
         end_date: booking.end_date,
         total_amount: booking.total_amount,
@@ -537,6 +548,36 @@ export default {
       }
     }
     
+    const markAsOngoing = async (id) => {
+      if (!confirm('Mark this booking as ongoing? This means the customer has picked up the vehicle.')) {
+        return
+      }
+      
+      try {
+        await apiStore.put(`/bookings/${id}`, { status: 'ongoing' })
+        await loadBookings()
+        alert('Booking marked as ongoing successfully!')
+      } catch (error) {
+        console.error('Error marking as ongoing:', error)
+        alert('Failed to update booking status')
+      }
+    }
+    
+    const markAsReturned = async (id) => {
+      if (!confirm('Mark this booking as returned? This means the customer has returned the vehicle.')) {
+        return
+      }
+      
+      try {
+        await apiStore.put(`/bookings/${id}`, { status: 'returned' })
+        await loadBookings()
+        alert('Booking marked as returned successfully!')
+      } catch (error) {
+        console.error('Error marking as returned:', error)
+        alert('Failed to update booking status')
+      }
+    }
+    
     const deleteBooking = async (id) => {
       console.log('Delete booking clicked for ID:', id)
       
@@ -609,6 +650,8 @@ export default {
       updateBooking,
       cancelEdit,
       cancelBooking,
+      markAsOngoing,
+      markAsReturned,
       deleteBooking,
       debounceSearch,
       checkAvailability,
@@ -954,9 +997,24 @@ textarea.form-control {
   color: #166534;
 }
 
-.status-completed {
-  background: #dbeafe;
+.status-active {
+  background: #ddd6fe;
+  color: #5b21b6;
+}
+
+.status-ongoing {
+  background: #bfdbfe;
   color: #1e40af;
+}
+
+.status-returned {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.status-completed {
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .status-cancelled {
