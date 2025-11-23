@@ -140,7 +140,7 @@ class PaymentController extends Controller {
             // Calculate payment amount
             $total_amount = floatval($booking['total_amount']);
             $payment_amount = $input['payment_type'] === 'downpayment' 
-                ? $total_amount * 0.5  // 50% downpayment
+                ? $total_amount * 0.3  // 30% downpayment
                 : $total_amount;        // Full payment
             
             // Create payment record first
@@ -148,6 +148,7 @@ class PaymentController extends Controller {
                 'booking_id' => $input['booking_id'],
                 'amount' => $payment_amount,
                 'payment_method' => $input['payment_method'],
+                'payment_type' => $input['payment_type'],
                 'payment_date' => date('Y-m-d'),
                 'status' => 'pending'
             ];
@@ -382,7 +383,7 @@ class PaymentController extends Controller {
      */
     public function success($booking_id) {
         $frontend_url = rtrim(getenv('FRONTEND_URL') ?: base_url().'frontend/', '/');
-        $redirect_url = $frontend_url . '/payment/success/' . urlencode($booking_id);
+        $redirect_url = $frontend_url . '/my-bookings';
         header('Location: ' . $redirect_url);
         exit;
     }
@@ -392,8 +393,57 @@ class PaymentController extends Controller {
      */
     public function failed($booking_id) {
         $frontend_url = rtrim(getenv('FRONTEND_URL') ?: base_url().'frontend/', '/');
-        $redirect_url = $frontend_url . '/payment/failed/' . urlencode($booking_id);
+        $redirect_url = $frontend_url . '/my-bookings';
         header('Location: ' . $redirect_url);
         exit;
     }
+
+    /**
+     * Get bookings that need payment
+     * Returns bookings with downpayment or pending damage repairs
+     */
+    public function needsPayment() {
+        $this->api->require_method('GET');
+        
+        try {
+            // Get bookings with downpayment (not fully paid)
+            $query = "SELECT DISTINCT b.id, b.booking_reference, 
+                             CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                             b.total_amount,
+                             COALESCE(SUM(p.amount), 0) as paid_amount,
+                             'downpayment' as reason
+                      FROM bookings b
+                      LEFT JOIN users u ON b.user_id = u.id
+                      LEFT JOIN payments p ON b.id = p.booking_id AND p.status = 'completed'
+                      WHERE b.deleted_at IS NULL 
+                      AND b.status IN ('confirmed', 'active', 'ongoing', 'returned')
+                      GROUP BY b.id, b.booking_reference, u.first_name, u.last_name, b.total_amount
+                      HAVING paid_amount < b.total_amount
+                      
+                      UNION
+                      
+                      SELECT DISTINCT b.id, b.booking_reference,
+                             CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                             m.cost as total_amount,
+                             0 as paid_amount,
+                             'damage' as reason
+                      FROM bookings b
+                      LEFT JOIN users u ON b.user_id = u.id
+                      INNER JOIN maintenance m ON b.id = m.booking_id
+                      WHERE b.deleted_at IS NULL
+                      AND m.deleted_at IS NULL
+                      AND m.status = 'pending'
+                      
+                      ORDER BY booking_reference";
+            
+            $stmt = $this->db->raw($query);
+            $bookings = $stmt->fetchAll();
+            
+            $this->api->respond(['bookings' => $bookings]);
+            
+        } catch (Exception $e) {
+            $this->api->respond_error('Error fetching bookings: ' . $e->getMessage(), 500);
+        }
+    }
 }
+

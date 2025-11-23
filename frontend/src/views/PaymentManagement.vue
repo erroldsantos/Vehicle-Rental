@@ -86,6 +86,7 @@
           <span>Vehicle</span>
           <span>Amount</span>
           <span>Method</span>
+          <span>Type</span>
           <span>Status</span>
           <span>Date</span>
           <span>Actions</span>
@@ -96,6 +97,11 @@
           <span class="vehicle-info">{{ getVehicleInfo(payment) }}</span>
           <span class="amount">₱{{ formatAmount(payment.amount) }}</span>
           <span class="payment-method">{{ payment.payment_method }}</span>
+          <span class="payment-type">
+            <span :class="['type-badge', payment.payment_type === 'downpayment' ? 'downpayment' : 'full']">
+              {{ payment.payment_type === 'downpayment' ? 'Down (30%)' : 'Full' }}
+            </span>
+          </span>
           <span>
             <span :class="['status-badge', getStatusClass(payment.status)]">
               {{ getStatusText(payment.status) }}
@@ -133,24 +139,31 @@
           <form @submit.prevent="createPayment">
             <div class="form-group">
               <label>Booking Reference</label>
-              <select v-model="newPayment.booking_id" required>
+              <select v-model="newPayment.booking_id" required @change="onBookingChange">
                 <option value="">Select a booking...</option>
                 <option v-for="booking in availableBookings" :key="booking.id" :value="booking.id">
-                  {{ booking.booking_reference }} - {{ booking.customer_name }}
+                  {{ booking.booking_reference }} - {{ booking.customer_name }} 
+                  ({{ booking.reason === 'downpayment' ? 'Balance Payment' : 'Damage Repair' }})
                 </option>
               </select>
             </div>
             <div class="form-group">
               <label>Amount</label>
-              <input v-model="newPayment.amount" type="number" step="0.01" required />
+              <input v-model="newPayment.amount" type="text" readonly class="readonly-input" />
+              <small style="color: #6c757d; margin-top: 0.25rem; display: block;">Amount is automatically set based on selected booking</small>
             </div>
             <div class="form-group">
               <label>Payment Method</label>
               <select v-model="newPayment.payment_method" required>
                 <option value="cash">Cash</option>
-                <option value="credit_card">Credit Card</option>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="check">Check</option>
+                <option value="gcash">GCash</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Payment Type</label>
+              <select v-model="newPayment.payment_type" required>
+                <option value="full">Full Payment</option>
+                <option value="downpayment">Down Payment (30%)</option>
               </select>
             </div>
             <div class="form-group">
@@ -176,6 +189,120 @@
         </div>
       </div>
     </div>
+
+    <!-- Payment Receipt Modal -->
+    <div v-if="showReceiptModal && selectedPayment" class="modal-overlay" @click="closeReceiptModal">
+      <div class="modal-content receipt-modal" @click.stop>
+        <div class="modal-header">
+          <h3>Payment Receipt</h3>
+          <button class="close-btn" @click="closeReceiptModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="receipt-container">
+            <!-- Receipt Header -->
+            <div class="receipt-header">
+              <div class="company-info">
+                <h2><i class="fas fa-car"></i> Vehicle Rental</h2>
+                <p>Payment Receipt</p>
+              </div>
+              <div class="receipt-number">
+                <p>Receipt #{{ selectedPayment.id }}</p>
+                <p>{{ formatDate(selectedPayment.payment_date) }}</p>
+              </div>
+            </div>
+
+            <div class="receipt-divider"></div>
+
+            <!-- Customer & Booking Info -->
+            <div class="receipt-section">
+              <h4><i class="fas fa-user"></i> Customer Information</h4>
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="label">Name:</span>
+                  <span class="value">{{ getCustomerName(selectedPayment) }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Booking Reference:</span>
+                  <span class="value">{{ selectedPayment.booking_reference || 'N/A' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="receipt-divider"></div>
+
+            <!-- Vehicle Info -->
+            <div class="receipt-section">
+              <h4><i class="fas fa-car"></i> Vehicle Details</h4>
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="label">Vehicle:</span>
+                  <span class="value">{{ getVehicleInfo(selectedPayment) }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Plate Number:</span>
+                  <span class="value">{{ selectedPayment.plate_number || 'N/A' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="receipt-divider"></div>
+
+            <!-- Payment Details -->
+            <div class="receipt-section">
+              <h4><i class="fas fa-credit-card"></i> Payment Details</h4>
+              <div class="payment-details">
+                <div class="detail-row">
+                  <span class="label">Payment Method:</span>
+                  <span class="value method">{{ selectedPayment.payment_method }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Payment Type:</span>
+                  <span class="value type">{{ selectedPayment.payment_type === 'downpayment' ? 'Down Payment (30%)' : 'Full Payment' }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Payment Status:</span>
+                  <span>
+                    <span :class="['status-badge', getStatusClass(selectedPayment.status)]">
+                      {{ getStatusText(selectedPayment.status) }}
+                    </span>
+                  </span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Payment Date:</span>
+                  <span class="value">{{ formatDate(selectedPayment.payment_date) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="receipt-divider"></div>
+
+            <!-- Total Amount -->
+            <div class="receipt-total">
+              <div class="total-row">
+                <span class="label">Total Amount:</span>
+                <span class="amount">₱{{ formatAmount(selectedPayment.amount) }}</span>
+              </div>
+            </div>
+
+            <!-- Receipt Footer -->
+            <div class="receipt-footer">
+              <p><i class="fas fa-check-circle"></i> Thank you for your payment!</p>
+              <small>This is a computer-generated receipt</small>
+            </div>
+          </div>
+
+          <!-- Modal Actions -->
+          <div class="modal-actions">
+            <button class="action-btn secondary" @click="closeReceiptModal">
+              <i class="fas fa-times"></i> Close
+            </button>
+            <button class="action-btn primary" @click="printReceipt">
+              <i class="fas fa-print"></i> Print Receipt
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -192,6 +319,8 @@ export default {
     const payments = ref([])
     const availableBookings = ref([])
     const showCreateModal = ref(false)
+    const showReceiptModal = ref(false)
+    const selectedPayment = ref(null)
     
     const stats = reactive({
       total_revenue: '0.00',
@@ -204,6 +333,7 @@ export default {
       booking_id: '',
       amount: '',
       payment_method: 'cash',
+      payment_type: 'full',
       payment_date: new Date().toISOString().split('T')[0],
       status: 'pending'
     })
@@ -230,19 +360,15 @@ export default {
 
     const loadAvailableBookings = async () => {
       try {
-        const response = await apiStore.get('/bookings')
+        const response = await apiStore.get('/payments/needs-payment')
         const bookings = response.bookings || response.data?.bookings || []
-          
-        // Filter out cancelled bookings - only show pending, confirmed, or completed bookings
-        const activeBookings = bookings.filter(booking => {
-          const status = booking.status ? booking.status.toLowerCase() : ''
-          return status !== 'cancelled'
-        })
         
-        availableBookings.value = activeBookings.map(booking => ({
+        availableBookings.value = bookings.map(booking => ({
           id: booking.id,
           booking_reference: booking.booking_reference,
-          customer_name: `${booking.first_name || ''} ${booking.last_name || ''}`.trim() || 'Unknown Customer'
+          customer_name: booking.customer_name || 'Unknown Customer',
+          reason: booking.reason,
+          outstanding_amount: parseFloat(booking.total_amount) - parseFloat(booking.paid_amount || 0)
         }))
       } catch (error) {
         console.error('Error loading bookings:', error)
@@ -262,7 +388,12 @@ export default {
     const createPayment = async () => {
       createLoading.value = true
       try {
-        await apiStore.post('/payments', newPayment)
+        // Remove ₱ sign and convert to number before sending
+        const paymentData = {
+          ...newPayment,
+          amount: parseFloat(newPayment.amount.replace('₱', ''))
+        }
+        await apiStore.post('/payments', paymentData)
         closeModal()
         await refreshData()
       } catch (error) {
@@ -300,13 +431,33 @@ export default {
         booking_id: '',
         amount: '',
         payment_method: 'cash',
+        payment_type: 'full',
         payment_date: new Date().toISOString().split('T')[0],
         status: 'pending'
       })
     }
 
+    const onBookingChange = () => {
+      const selectedBooking = availableBookings.value.find(b => b.id === newPayment.booking_id)
+      if (selectedBooking) {
+        newPayment.amount = '₱' + selectedBooking.outstanding_amount.toFixed(2)
+      } else {
+        newPayment.amount = ''
+      }
+    }
+
     const viewPayment = (payment) => {
-      alert(`Payment Details:\n\nBooking: ${payment.booking_reference}\nCustomer: ${getCustomerName(payment)}\nAmount: ₱${formatAmount(payment.amount)}\nMethod: ${payment.payment_method}\nStatus: ${getStatusText(payment.status)}`)
+      selectedPayment.value = payment
+      showReceiptModal.value = true
+    }
+
+    const closeReceiptModal = () => {
+      showReceiptModal.value = false
+      selectedPayment.value = null
+    }
+
+    const printReceipt = () => {
+      window.print()
     }
 
     const exportReport = () => {
@@ -362,14 +513,19 @@ export default {
       availableBookings,
       stats,
       showCreateModal,
+      showReceiptModal,
+      selectedPayment,
       newPayment,
       refreshData,
       createPayment,
       markAsPaid,
       deletePayment,
       closeModal,
+      closeReceiptModal,
       viewPayment,
+      printReceipt,
       exportReport,
+      onBookingChange,
       formatAmount,
       formatDate,
       getCustomerName,
@@ -520,6 +676,12 @@ export default {
   border-color: #3498db;
 }
 
+.readonly-input {
+  background-color: #f8f9fa !important;
+  cursor: not-allowed;
+  color: #495057;
+}
+
 .modal-actions {
   display: flex;
   gap: 12px;
@@ -552,6 +714,26 @@ export default {
   color: white;
 }
 
+/* Payment Type Badge Styles */
+.type-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.type-badge.full {
+  background: #27ae60;
+  color: white;
+}
+
+.type-badge.downpayment {
+  background: #3498db;
+  color: white;
+}
+
 /* Animation for spinning refresh icon */
 .fa-spin {
   animation: spin 1s linear infinite;
@@ -566,5 +748,196 @@ export default {
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Receipt Modal Styles */
+.receipt-modal {
+  max-width: 650px;
+}
+
+.receipt-container {
+  background: white;
+  padding: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.receipt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.company-info h2 {
+  margin: 0 0 8px 0;
+  color: #667eea;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.company-info p {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.receipt-number {
+  text-align: right;
+}
+
+.receipt-number p {
+  margin: 0 0 4px 0;
+  color: #666;
+  font-size: 13px;
+}
+
+.receipt-divider {
+  height: 1px;
+  background: linear-gradient(to right, #e0e0e0, transparent);
+  margin: 20px 0;
+}
+
+.receipt-section {
+  margin-bottom: 20px;
+}
+
+.receipt-section h4 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.receipt-section h4 i {
+  color: #667eea;
+  font-size: 16px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-item .label {
+  font-size: 12px;
+  color: #999;
+  font-weight: 500;
+}
+
+.info-item .value {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.payment-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.detail-row .label {
+  font-size: 13px;
+  color: #666;
+}
+
+.detail-row .value {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+.detail-row .value.method {
+  text-transform: capitalize;
+}
+
+.receipt-total {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 4px;
+  margin: 20px 0;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.total-row .label {
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+}
+
+.total-row .amount {
+  font-size: 24px;
+  color: #667eea;
+  font-weight: 700;
+}
+
+.receipt-footer {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px dashed #e0e0e0;
+}
+
+.receipt-footer p {
+  margin: 0 0 8px 0;
+  color: #27ae60;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.receipt-footer small {
+  color: #999;
+  font-size: 11px;
+}
+
+/* Print Styles */
+@media print {
+  .modal-overlay {
+    background: white !important;
+    position: static !important;
+  }
+
+  .modal-content {
+    box-shadow: none !important;
+    max-width: 100% !important;
+    border: none !important;
+  }
+
+  .modal-header,
+  .modal-actions {
+    display: none !important;
+  }
+
+  .receipt-container {
+    border: none !important;
+  }
 }
 </style>

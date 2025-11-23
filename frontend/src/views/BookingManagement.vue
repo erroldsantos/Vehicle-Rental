@@ -1,5 +1,11 @@
 <template>
   <div class="booking-management">
+    <!-- Toast Notification -->
+    <div v-if="notification.show" :class="['toast-notification', notification.type]">
+      <i :class="['fas', notification.type === 'success' ? 'fa-check-circle' : notification.type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle']"></i>
+      <span>{{ notification.message }}</span>
+    </div>
+
     <div class="page-title">
       <h1>Booking Management</h1>
       <p>Manage vehicle reservations and customer bookings</p>
@@ -199,6 +205,71 @@
         </form>
       </div>
 
+      <!-- Vehicle Inspection Modal -->
+      <div v-if="showInspection" class="form-container">
+        <div class="form-header">
+          <h4>Vehicle Inspection - {{ inspectionBooking?.booking_reference }}</h4>
+          <button @click="closeInspection" class="btn-close">×</button>
+        </div>
+        <form @submit.prevent="submitInspection">
+          <div class="inspection-info">
+            <p><strong>Vehicle:</strong> {{ inspectionBooking?.brand }} {{ inspectionBooking?.model }} - {{ inspectionBooking?.plate_number }}</p>
+            <p><strong>Customer:</strong> {{ inspectionBooking?.first_name }} {{ inspectionBooking?.last_name }}</p>
+          </div>
+
+          <div class="form-group">
+            <label>Vehicle Condition:</label>
+            <div class="radio-group">
+              <label>
+                <input type="radio" v-model="inspection.has_damage" :value="false" required />
+                <span class="status-ok"><i class="fas fa-check-circle"></i> No Damage - OK</span>
+              </label>
+              <label>
+                <input type="radio" v-model="inspection.has_damage" :value="true" required />
+                <span class="status-damage"><i class="fas fa-exclamation-triangle"></i> Has Damage</span>
+              </label>
+            </div>
+          </div>
+
+          <div v-if="inspection.has_damage" class="damage-details">
+            <div class="form-group">
+              <label>Damage Type:</label>
+              <select v-model="inspection.damage_type" class="form-control" required>
+                <option value="">Select damage type...</option>
+                <option value="Scratches">Scratches</option>
+                <option value="Dents">Dents</option>
+                <option value="Broken Parts">Broken Parts</option>
+                <option value="Interior Damage">Interior Damage</option>
+                <option value="Mechanical Issues">Mechanical Issues</option>
+                <option value="Tire Damage">Tire Damage</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Repair Cost (₱):</label>
+              <input v-model.number="inspection.cost" class="form-control" type="number" step="0.01" min="0" required />
+            </div>
+
+            <div class="form-group">
+              <label>Notes:</label>
+              <textarea v-model="inspection.notes" class="form-control" rows="3" placeholder="Describe the damage..."></textarea>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" @click="closeInspection" class="btn">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="inspecting">
+              <i v-if="inspecting" class="fas fa-spinner fa-spin"></i>
+              <i v-else class="fas fa-check"></i>
+              {{ inspecting ? 'Processing...' : 'Submit Inspection' }}
+            </button>
+          </div>
+        </form>
+      </div>
+
       <div v-if="loading" class="loading">
         <i class="fas fa-spinner fa-spin"></i> Loading bookings...
       </div>
@@ -238,6 +309,9 @@
                 <button @click="markAsReturned(booking.id)" class="btn btn-sm btn-info" title="Mark as Returned" v-if="booking.status === 'ongoing'">
                   <i class="fas fa-check"></i>
                 </button>
+                <button @click="openInspection(booking)" class="btn btn-sm btn-primary" title="Check Vehicle" v-if="booking.status === 'returned'">
+                  <i class="fas fa-search"></i> Check
+                </button>
                 <button @click="editBooking(booking)" class="btn btn-sm" title="Edit Booking">
                   <i class="fas fa-edit"></i>
                 </button>
@@ -271,9 +345,18 @@ export default {
     const stats = ref({})
     const showAddForm = ref(false)
     const showEditForm = ref(false)
+    const showInspection = ref(false)
+    const inspecting = ref(false)
     const searchTimeout = ref(null)
     const availableUsers = ref([])
     const availableVehicles = ref([])
+    const inspectionBooking = ref(null)
+    
+    const notification = ref({
+      show: false,
+      type: 'success', // 'success', 'error', 'info'
+      message: ''
+    })
     
     const filters = ref({
       status: '',
@@ -286,6 +369,13 @@ export default {
       start_date: '',
       end_date: '',
       status: 'pending',
+      notes: ''
+    })
+
+    const inspection = ref({
+      has_damage: false,
+      damage_type: '',
+      cost: 0,
       notes: ''
     })
     
@@ -401,6 +491,19 @@ export default {
         console.error('Failed to load vehicles:', error)
       }
     }
+
+    const showNotification = (message, type = 'success') => {
+      notification.value = {
+        show: true,
+        type,
+        message
+      }
+      
+      // Auto hide after 4 seconds
+      setTimeout(() => {
+        notification.value.show = false
+      }, 8000)
+    }
     
     const checkAvailability = async () => {
       if (newBooking.value.start_date && newBooking.value.end_date) {
@@ -497,7 +600,7 @@ export default {
         
         // Check if there's a warning (user has too many confirmed bookings)
         if (response.warning) {
-          alert(response.warning)
+          showNotification(response.warning, 'info')
         }
         
         // Update the booking in the list
@@ -513,7 +616,7 @@ export default {
         console.error('Failed to update booking:', error)
         console.error('Error details:', error.response)
         const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Unknown error'
-        alert('Failed to update booking: ' + errorMsg)
+        showNotification('Failed to update booking: ' + errorMsg, 'error')
       }
     }
     
@@ -556,10 +659,10 @@ export default {
       try {
         await apiStore.put(`/bookings/${id}`, { status: 'ongoing' })
         await loadBookings()
-        alert('Booking marked as ongoing successfully!')
+        showNotification('Booking marked as ongoing successfully!', 'success')
       } catch (error) {
         console.error('Error marking as ongoing:', error)
-        alert('Failed to update booking status')
+        showNotification('Failed to update booking status', 'error')
       }
     }
     
@@ -571,10 +674,69 @@ export default {
       try {
         await apiStore.put(`/bookings/${id}`, { status: 'returned' })
         await loadBookings()
-        alert('Booking marked as returned successfully!')
+        showNotification('Booking marked as returned successfully!', 'success')
       } catch (error) {
         console.error('Error marking as returned:', error)
-        alert('Failed to update booking status')
+        showNotification('Failed to update booking status', 'error')
+      }
+    }
+
+    const openInspection = (booking) => {
+      inspectionBooking.value = booking
+      inspection.value = {
+        has_damage: false,
+        damage_type: '',
+        cost: 0,
+        notes: ''
+      }
+      showInspection.value = true
+    }
+
+    const closeInspection = () => {
+      showInspection.value = false
+      inspectionBooking.value = null
+      inspection.value = {
+        has_damage: false,
+        damage_type: '',
+        cost: 0,
+        notes: ''
+      }
+    }
+
+    const submitInspection = async () => {
+      inspecting.value = true
+      
+      try {
+        const payload = {
+          has_damage: inspection.value.has_damage
+        }
+
+        // Store the damage state before closing inspection
+        const hasDamage = inspection.value.has_damage
+        const damageCost = inspection.value.cost
+
+        // Only include damage details if there is damage
+        if (hasDamage) {
+          payload.damage_type = inspection.value.damage_type
+          payload.cost = inspection.value.cost
+          payload.notes = inspection.value.notes || `Damage from rental: ${inspection.value.damage_type}`
+        }
+
+        const response = await apiStore.post(`/maintenance/inspect/${inspectionBooking.value.id}`, payload)
+        
+        await loadBookings()
+        closeInspection()
+        
+        if (hasDamage) {
+          showNotification(`Damage recorded! Customer must pay ₱${damageCost.toFixed(2)} for repairs before booking can be completed.`, 'info')
+        } else {
+          showNotification('Vehicle inspection complete - no damage found. Booking has been completed.', 'success')
+        }
+      } catch (error) {
+        console.error('Error submitting inspection:', error)
+        showNotification('Failed to submit inspection: ' + (error.response?.data?.message || error.message), 'error')
+      } finally {
+        inspecting.value = false
       }
     }
     
@@ -632,17 +794,23 @@ export default {
       loading,
       bookings,
       stats,
+      notification,
       showAddForm,
       showEditForm,
+      showInspection,
+      inspecting,
       filters,
       newBooking,
       editingBooking,
+      inspectionBooking,
+      inspection,
       availableUsers,
       availableVehicles,
       minDate,
       minEditStartDate,
       isFormValid,
       estimatedCost,
+      showNotification,
       loadBookings,
       addBooking,
       cancelAdd,
@@ -652,6 +820,9 @@ export default {
       cancelBooking,
       markAsOngoing,
       markAsReturned,
+      openInspection,
+      closeInspection,
+      submitInspection,
       deleteBooking,
       debounceSearch,
       checkAvailability,
@@ -1047,6 +1218,85 @@ textarea.form-control {
   color: #6366f1;
 }
 
+/* Inspection Modal Styles */
+.inspection-info {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.inspection-info p {
+  margin: 5px 0;
+  color: #495057;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.radio-group label:hover {
+  border-color: #6366f1;
+  background: #f8f9fa;
+}
+
+.radio-group input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.radio-group input[type="radio"]:checked + span {
+  font-weight: 600;
+}
+
+.status-ok {
+  color: #27ae60;
+  font-size: 16px;
+}
+
+.status-ok i {
+  margin-right: 8px;
+}
+
+.status-damage {
+  color: #e74c3c;
+  font-size: 16px;
+}
+
+.status-damage i {
+  margin-right: 8px;
+}
+
+.damage-details {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 15px;
+}
+
+.damage-details .form-group {
+  margin-bottom: 15px;
+}
+
+.damage-details .form-group:last-child {
+  margin-bottom: 0;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .stats-grid {
@@ -1123,6 +1373,70 @@ textarea.form-control {
   
   .action-buttons .btn {
     font-size: 0.75rem;
+  }
+}
+
+/* Toast Notification Styles */
+.toast-notification {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  min-width: 300px;
+  max-width: 500px;
+  padding: 16px 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 9999;
+  animation: slideIn 0.3s ease-out;
+  border-left: 4px solid;
+}
+
+.toast-notification i {
+  font-size: 20px;
+}
+
+.toast-notification span {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.toast-notification.success {
+  border-left-color: #27ae60;
+}
+
+.toast-notification.success i {
+  color: #27ae60;
+}
+
+.toast-notification.error {
+  border-left-color: #e74c3c;
+}
+
+.toast-notification.error i {
+  color: #e74c3c;
+}
+
+.toast-notification.info {
+  border-left-color: #3498db;
+}
+
+.toast-notification.info i {
+  color: #3498db;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 </style>

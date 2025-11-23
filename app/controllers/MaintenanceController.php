@@ -8,6 +8,7 @@ class MaintenanceController extends Controller {
         $this->call->library('api');
         $this->call->model('Maintenance');
         $this->call->model('Vehicle');
+        $this->call->model('Booking');
     }
 
     public function index() {
@@ -168,6 +169,115 @@ class MaintenanceController extends Controller {
             
         } catch (Exception $e) {
             $this->api->respond_error('Database error: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * POST /maintenance/inspect/{booking_id} - Create damage inspection for returned booking
+     */
+    public function inspect($booking_id) {
+        $this->api->require_method('POST');
+
+        $input = $this->api->body();
+
+        try {
+            // Get booking details
+            $booking = $this->Booking->getBookingById($booking_id);
+            if (!$booking) {
+                $this->api->respond_error('Booking not found', 404);
+                return;
+            }
+
+            // Check if booking is returned
+            if ($booking['status'] !== 'returned') {
+                $this->api->respond_error('Only returned bookings can be inspected', 400);
+                return;
+            }
+
+            // Check damage status
+            $has_damage = isset($input['has_damage']) ? filter_var($input['has_damage'], FILTER_VALIDATE_BOOLEAN) : false;
+
+            if (!$has_damage) {
+                // No damage - mark booking as completed
+                $this->Booking->updateBooking($booking_id, ['status' => 'completed']);
+                
+                $this->api->respond([
+                    'message' => 'Vehicle inspected - no damage found',
+                    'booking_status' => 'completed'
+                ]);
+                return;
+            }
+
+            // Has damage - create maintenance record
+            $damageData = [
+                'vehicle_id' => $booking['vehicle_id'],
+                'booking_id' => $booking_id,
+                'damage_type' => $input['damage_type'] ?? 'Unspecified damage',
+                'cost' => $input['cost'] ?? 0,
+                'description' => $input['notes'] ?? 'Damage from rental: ' . ($input['damage_type'] ?? 'Unspecified')
+            ];
+
+            $maintenance = $this->Maintenance->createDamageInspection($damageData);
+
+            $this->api->respond([
+                'message' => 'Damage recorded - awaiting customer payment',
+                'maintenance' => $maintenance,
+                'booking_status' => 'returned'
+            ], 201);
+
+        } catch (Exception $e) {
+            $this->api->respond_error($e->getMessage(), $e->getCode() ?: 400);
+        }
+    }
+
+    /**
+     * PUT /maintenance/{id}/mark-paid - Mark damage as paid and start repair
+     */
+    public function markPaid($id) {
+        $this->api->require_method('PUT');
+
+        try {
+            $maintenance = $this->Maintenance->getMaintenanceById($id);
+            
+            if (!$maintenance) {
+                $this->api->respond_error('Maintenance record not found', 404);
+                return;
+            }
+
+            if ($maintenance['status'] !== 'pending') {
+                $this->api->respond_error('Only pending damage can be marked as paid', 400);
+                return;
+            }
+
+            // Mark as paid (changes status to scheduled)
+            $updated = $this->Maintenance->markDamagePaid($id);
+
+            // If there's a booking_id, complete the booking now that damage is paid
+            if ($maintenance['booking_id']) {
+                $this->Booking->updateBooking($maintenance['booking_id'], ['status' => 'completed']);
+            }
+
+            $this->api->respond([
+                'message' => 'Damage payment recorded - vehicle in maintenance',
+                'maintenance' => $updated
+            ]);
+
+        } catch (Exception $e) {
+            $this->api->respond_error($e->getMessage(), $e->getCode() ?: 400);
+        }
+    }
+
+    /**
+     * GET /maintenance/booking/{booking_id} - Get maintenance records for a booking
+     */
+    public function byBooking($booking_id) {
+        $this->api->require_method('GET');
+
+        try {
+            $maintenance = $this->Maintenance->getByBookingId($booking_id);
+            $this->api->respond($maintenance);
+        } catch (Exception $e) {
+            $this->api->respond_error($e->getMessage(), 500);
         }
     }
 }

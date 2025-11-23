@@ -356,13 +356,6 @@
                   <span>GrabPay</span>
                 </div>
               </label>
-              <label class="method-option">
-                <input type="radio" value="card" v-model="paymentMethod">
-                <div class="method-card">
-                  <i class="fas fa-credit-card"></i>
-                  <span>Card</span>
-                </div>
-              </label>
             </div>
           </div>
 
@@ -383,8 +376,8 @@
               <label class="type-option">
                 <input type="radio" value="downpayment" v-model="paymentType">
                 <div class="type-card">
-                  <span class="type-label">Down Payment (50%)</span>
-                  <span class="type-amount">₱{{ formatAmount(selectedBooking.total_amount * 0.5) }}</span>
+                  <span class="type-label">Down Payment (30%)</span>
+                  <span class="type-amount">₱{{ formatAmount(selectedBooking.total_amount * 0.3) }}</span>
                 </div>
               </label>
             </div>

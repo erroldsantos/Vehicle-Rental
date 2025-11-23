@@ -93,19 +93,23 @@ CREATE TABLE IF NOT EXISTS `bookings` (
 
 -- ============================================
 -- Table: maintenance
--- Description: Vehicle maintenance records
+-- Description: Vehicle maintenance records (including damage reports)
 -- ============================================
 CREATE TABLE IF NOT EXISTS `maintenance` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `vehicle_id` int(11) NOT NULL,
+  `booking_id` int(11) DEFAULT NULL,
   `description` text NOT NULL,
+  `damage_type` varchar(100) DEFAULT NULL,
   `scheduled_date` date NOT NULL,
   `cost` decimal(10,2) DEFAULT 0.00,
-  `status` enum('scheduled','completed') DEFAULT 'scheduled',
+  `status` enum('scheduled','pending','completed') DEFAULT 'scheduled',
   `deleted_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `vehicle_id` (`vehicle_id`),
-  CONSTRAINT `maintenance_ibfk_1` FOREIGN KEY (`vehicle_id`) REFERENCES `vehicles` (`id`)
+  KEY `booking_id` (`booking_id`),
+  CONSTRAINT `maintenance_ibfk_1` FOREIGN KEY (`vehicle_id`) REFERENCES `vehicles` (`id`),
+  CONSTRAINT `maintenance_ibfk_2` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ============================================
@@ -118,6 +122,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
   `amount` decimal(10,2) NOT NULL,
   `payment_date` date NOT NULL,
   `payment_method` varchar(50) NOT NULL,
+  `payment_type` enum('full','downpayment') DEFAULT 'full',
   `status` enum('pending','completed') DEFAULT 'pending',
   `deleted_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),

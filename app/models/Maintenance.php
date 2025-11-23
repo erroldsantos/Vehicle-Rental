@@ -5,7 +5,7 @@ class Maintenance extends Model {
     protected $table = 'maintenance';
     protected $primary_key = 'id';
     protected $soft_delete = true; // Enable soft deletes
-    protected $fillable = ['vehicle_id', 'description', 'scheduled_date', 'cost', 'status'];
+    protected $fillable = ['vehicle_id', 'booking_id', 'description', 'damage_type', 'scheduled_date', 'cost', 'status'];
 
     /**
      * Get all maintenance records with vehicle details
@@ -16,9 +16,15 @@ class Maintenance extends Model {
                          v.model, 
                          v.year,
                          v.plate_number,
-                         CONCAT(v.brand, ' ', v.model, ' (', v.year, ') - ', v.plate_number) as vehicle_display
+                         CONCAT(v.brand, ' ', v.model, ' (', v.year, ') - ', v.plate_number) as vehicle_display,
+                         b.booking_reference,
+                         u.first_name,
+                         u.last_name,
+                         CONCAT(u.first_name, ' ', u.last_name) as customer_name
                   FROM maintenance m
                   LEFT JOIN vehicles v ON m.vehicle_id = v.id
+                  LEFT JOIN bookings b ON m.booking_id = b.id
+                  LEFT JOIN users u ON b.user_id = u.id
                   WHERE m.deleted_at IS NULL";
         $params = [];
         
@@ -55,9 +61,15 @@ class Maintenance extends Model {
                          v.model, 
                          v.year,
                          v.plate_number,
-                         CONCAT(v.brand, ' ', v.model, ' (', v.year, ') - ', v.plate_number) as vehicle_display
+                         CONCAT(v.brand, ' ', v.model, ' (', v.year, ') - ', v.plate_number) as vehicle_display,
+                         b.booking_reference,
+                         u.first_name,
+                         u.last_name,
+                         CONCAT(u.first_name, ' ', u.last_name) as customer_name
                   FROM maintenance m
                   LEFT JOIN vehicles v ON m.vehicle_id = v.id
+                  LEFT JOIN bookings b ON m.booking_id = b.id
+                  LEFT JOIN users u ON b.user_id = u.id
                   WHERE m.id = ? AND m.deleted_at IS NULL";
         $stmt = $this->db->raw($query, [$id]);
         $result = $stmt->fetchAll();
@@ -93,8 +105,8 @@ class Maintenance extends Model {
         $result = $stmt->fetch();
         $id = $result['id'];
         
-        // Update vehicle status if scheduled
-        if ($data['status'] === 'scheduled') {
+        // Update vehicle status if scheduled or pending (damage)
+        if ($data['status'] === 'scheduled' || $data['status'] === 'pending') {
             $this->db->raw("UPDATE vehicles SET status = 'maintenance' WHERE id = ?", [$data['vehicle_id']]);
         }
         
@@ -124,7 +136,7 @@ class Maintenance extends Model {
         if (isset($data['status'])) {
             if ($data['status'] === 'completed') {
                 $this->db->raw("UPDATE vehicles SET status = 'available' WHERE id = ?", [$maintenance['vehicle_id']]);
-            } elseif ($data['status'] === 'scheduled') {
+            } elseif ($data['status'] === 'scheduled' || $data['status'] === 'pending') {
                 $this->db->raw("UPDATE vehicles SET status = 'maintenance' WHERE id = ?", [$maintenance['vehicle_id']]);
             }
         }
@@ -208,6 +220,59 @@ class Maintenance extends Model {
         $stats['total_cost'] = $result['total_cost'] ?? 0;
         
         return $stats;
+    }
+
+    /**
+     * Get maintenance records by booking ID
+     */
+    public function getByBookingId($booking_id) {
+        $query = "SELECT m.* 
+                  FROM maintenance m
+                  WHERE m.booking_id = ? AND m.deleted_at IS NULL
+                  ORDER BY m.id DESC";
+        
+        $stmt = $this->db->raw($query, [$booking_id]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Create damage inspection record
+     */
+    public function createDamageInspection($data) {
+        // Validate required fields
+        $required = ['vehicle_id', 'booking_id', 'damage_type', 'cost'];
+        foreach ($required as $field) {
+            if (empty($data[$field]) && $data[$field] !== 0) {
+                throw new Exception("Field '$field' is required");
+            }
+        }
+
+        // Set damage-specific defaults with proper description
+        $defaultDescription = 'Damage from rental - ' . $data['damage_type'];
+        if (!empty($data['notes'])) {
+            $defaultDescription = $data['notes'];
+        } elseif (!empty($data['description'])) {
+            $defaultDescription = $data['description'];
+        }
+
+        $inspectionData = [
+            'vehicle_id' => $data['vehicle_id'],
+            'booking_id' => $data['booking_id'],
+            'damage_type' => $data['damage_type'],
+            'description' => $defaultDescription,
+            'scheduled_date' => date('Y-m-d'),
+            'cost' => $data['cost'],
+            'status' => 'pending' // Pending until customer pays
+        ];
+
+        return $this->createMaintenance($inspectionData);
+    }
+
+    /**
+     * Mark damage as paid and move to scheduled
+     */
+    public function markDamagePaid($id) {
+        return $this->updateMaintenance($id, ['status' => 'scheduled']);
     }
 }
 

@@ -8,13 +8,13 @@ class Payment extends Model {
     protected $table = 'payments';
     protected $primary_key = 'id';
     protected $soft_delete = true;
-    protected $fillable = ['booking_id', 'amount', 'payment_date', 'payment_method', 'status'];
+    protected $fillable = ['booking_id', 'amount', 'payment_date', 'payment_method', 'payment_type', 'status'];
 
     /**
      * Get all payments with related booking, user, and vehicle information
      */
     public function getAllPayments($filters = []) {
-        $query = "SELECT p.id, p.booking_id, p.amount, p.payment_date, p.payment_method, p.status,
+        $query = "SELECT p.id, p.booking_id, p.amount, p.payment_date, p.payment_method, p.payment_type, p.status,
                          b.booking_reference, b.start_date, b.end_date, b.total_amount as booking_total,
                          u.first_name, u.last_name, u.email,
                          CONCAT(u.first_name, ' ', u.last_name) as customer_name,
