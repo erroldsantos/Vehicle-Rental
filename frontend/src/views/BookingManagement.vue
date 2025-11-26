@@ -36,14 +36,6 @@
         </div>
         <div class="stat-number">{{ stats.confirmed_bookings || 0 }}</div>
       </div>
-      
-      <div class="stat-card">
-        <div class="stat-header">
-          <h3>Total Revenue</h3>
-          <i class="fas fa-dollar-sign"></i>
-        </div>
-        <div class="stat-number">₱{{ parseFloat(stats.total_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</div>
-      </div>
     </div>
 
     <div class="table-container">
@@ -222,7 +214,7 @@
             <div class="radio-group">
               <label>
                 <input type="radio" v-model="inspection.has_damage" :value="false" required />
-                <span class="status-ok"><i class="fas fa-check-circle"></i> No Damage - OK</span>
+                <span class="status-ok"><i class="fas fa-check-circle"></i> No Damage</span>
               </label>
               <label>
                 <input type="radio" v-model="inspection.has_damage" :value="true" required />

@@ -2,9 +2,8 @@
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
 /**
- * PayMongo Library for LavaLust
+ * PayMongo Library
  * 
- * This library integrates PayMongo payment gateway with LavaLust framework
  * 
  * @package Vehicle Rental System
  * @author Your Name

@@ -1,6 +1,6 @@
 ﻿-- ============================================
 -- Vehicle Rental System - Complete Database Schema
--- Generated: November 16, 2025
+-- Generated: November 26, 2025
 -- Database: vehicle_rental
 -- ============================================
 -- This schema represents the current production database structure.
@@ -62,11 +62,7 @@ CREATE TABLE IF NOT EXISTS `vehicles` (
 -- ============================================
 -- Table: bookings
 -- Description: Vehicle rental bookings
--- ============================================
-CREATE TABLE IF NOT EXISTS `bookings`
--- ============================================
--- Table: bookings
--- Description: Vehicle rental bookings
+-- Status flow: pending → confirmed → active → ongoing → returned → completed
 -- ============================================
 CREATE TABLE IF NOT EXISTS `bookings` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -79,7 +75,7 @@ CREATE TABLE IF NOT EXISTS `bookings` (
   `notes` text DEFAULT NULL,
   `pickup_location` varchar(255) DEFAULT NULL,
   `dropoff_location` varchar(255) DEFAULT NULL,
-  `status` enum('pending','confirmed','completed','cancelled') DEFAULT 'pending',
+  `status` enum('pending','confirmed','active','ongoing','returned','completed','cancelled') NOT NULL DEFAULT 'pending',
   `deleted_at` datetime DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),

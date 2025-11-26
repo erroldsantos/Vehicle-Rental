@@ -4,7 +4,7 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 class Maintenance extends Model {
     protected $table = 'maintenance';
     protected $primary_key = 'id';
-    protected $soft_delete = true; // Enable soft deletes
+    protected $soft_delete = true;
     protected $fillable = ['vehicle_id', 'booking_id', 'description', 'damage_type', 'scheduled_date', 'cost', 'status'];
 
     /**
@@ -239,7 +239,6 @@ class Maintenance extends Model {
      * Create damage inspection record
      */
     public function createDamageInspection($data) {
-        // Validate required fields
         $required = ['vehicle_id', 'booking_id', 'damage_type', 'cost'];
         foreach ($required as $field) {
             if (empty($data[$field]) && $data[$field] !== 0) {
@@ -262,15 +261,13 @@ class Maintenance extends Model {
             'description' => $defaultDescription,
             'scheduled_date' => date('Y-m-d'),
             'cost' => $data['cost'],
-            'status' => 'pending' // Pending until customer pays
+            'status' => 'pending'
         ];
 
         return $this->createMaintenance($inspectionData);
     }
 
-    /**
-     * Mark damage as paid and move to scheduled
-     */
+
     public function markDamagePaid($id) {
         return $this->updateMaintenance($id, ['status' => 'scheduled']);
     }
