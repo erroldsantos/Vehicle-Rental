@@ -34,24 +34,57 @@ RUN apt-get update && apt-get install -y \
 # Enable Apache modules
 RUN a2enmod rewrite alias
 
-# Copy frontend build output into Apache public directory
-COPY --from=frontend-builder /app/frontend/dist/ /var/www/html/
+# Set working directory
+WORKDIR /var/www/html
 
-# Copy backend (LavaLust app) into container
-COPY backend/ /var/www/html/
+# Copy backend files first
+COPY --chown=www-data:www-data . .
+
+# Copy frontend build output to frontend/dist subdirectory
+COPY --from=frontend-builder --chown=www-data:www-data /app/frontend/dist ./frontend/dist
+
+# Install Composer and dependencies
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN cd app && composer install --no-dev --optimize-autoloader
+
+# Create necessary directories
+RUN mkdir -p runtime/logs runtime/session public/images/vehicles public/images/licenses \
+    && chown -R www-data:www-data runtime public/images \
+    && chmod -R 755 runtime public/images
 
 # Configure Apache VirtualHost
 RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
-    DocumentRoot /var/www/html/public\n\
-    <Directory /var/www/html/public>\n\
-        Options Indexes FollowSymLinks\n\
+    DocumentRoot /var/www/html/frontend/dist\n\
+\n\
+    # Frontend directory\n\
+    <Directory /var/www/html/frontend/dist>\n\
+        Options -Indexes +FollowSymLinks\n\
+        AllowOverride None\n\
+        Require all granted\n\
+        \n\
+        RewriteEngine On\n\
+        RewriteBase /\n\
+        \n\
+        # API requests to backend\n\
+        RewriteCond %{REQUEST_URI} ^/api/\n\
+        RewriteRule ^api/(.*)$ /var/www/html/index.php/api/$1 [L,QSA]\n\
+        \n\
+        # SPA fallback\n\
+        RewriteCond %{REQUEST_FILENAME} !-f\n\
+        RewriteCond %{REQUEST_FILENAME} !-d\n\
+        RewriteRule ^ index.html [L]\n\
+    </Directory>\n\
+\n\
+    # Backend directory\n\
+    <Directory /var/www/html>\n\
+        Options -Indexes +FollowSymLinks\n\
         AllowOverride All\n\
         Require all granted\n\
     </Directory>\n\
+\n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
     CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
-    ServerName localhost\n\
 </VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
 # Expose port
