@@ -49,17 +49,20 @@ RUN echo '<VirtualHost *:80>\n\
         Require all granted\n\
         RewriteEngine On\n\
 \n\
-        # 1) API to backend PHP\n\
+        # 1) Root redirect to frontend\n\
+        RewriteRule ^$ /frontend/dist/index.html [L]\n\
+\n\
+        # 2) API to backend PHP\n\
         RewriteRule ^api/(.*)$ /index.php/api/$1 [L,QSA]\n\
 \n\
-        # 2) Exclude existing files and frontend assets from rewrites\n\
+        # 3) Exclude existing files and frontend assets from rewrites\n\
         RewriteCond %{REQUEST_FILENAME} -f\n\
         RewriteRule ^ - [L]\n\
         RewriteCond %{REQUEST_URI} ^/(assets/|vite\\.svg) [OR]\n\
         RewriteCond %{REQUEST_URI} ^/public/\n\
         RewriteRule ^ - [L]\n\
 \n\
-        # 3) SPA fallback for any other non-file, non-API request\n\
+        # 4) SPA fallback for any other non-file, non-API request\n\
         RewriteCond %{REQUEST_URI} !^/api/\n\
         RewriteCond %{REQUEST_FILENAME} !-d\n\
         RewriteRule ^(.*)$ /frontend/dist/index.html [L]\n\
