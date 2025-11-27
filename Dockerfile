@@ -34,15 +34,11 @@ RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
     DocumentRoot /var/www/html/frontend/dist\n\
 \n\
-    # Route API to backend index.php\n\
-    ScriptAliasMatch ^/api/(.*) /var/www/html/index.php/api/$1\n\
-\n\
     # Backend directory for API\n\
     <Directory /var/www/html>\n\
-        Options -Indexes +FollowSymLinks +ExecCGI\n\
+        Options -Indexes +FollowSymLinks\n\
         AllowOverride All\n\
         Require all granted\n\
-        SetHandler application/x-httpd-php\n\
     </Directory>\n\
 \n\
     # Frontend directory\n\
@@ -52,7 +48,12 @@ RUN echo '<VirtualHost *:80>\n\
         Require all granted\n\
         \n\
         RewriteEngine On\n\
-        # SPA fallback - serve static files or index.html\n\
+        \n\
+        # API requests - rewrite to backend\n\
+        RewriteCond %{REQUEST_URI} ^/api/(.*)$\n\
+        RewriteRule ^api/(.*)$ /var/www/html/index.php [L,E=PATH_INFO:/api/$1,QSA]\n\
+        \n\
+        # SPA fallback for frontend routes\n\
         RewriteCond %{REQUEST_FILENAME} !-f\n\
         RewriteCond %{REQUEST_FILENAME} !-d\n\
         RewriteRule ^ /index.html [L]\n\
