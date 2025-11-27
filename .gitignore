@@ -2,3 +2,25 @@
 .env
 .env.local
 .env.*.local
+
+# Composer
+/app/vendor/
+composer.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/logs/
+/runtime/logs/
+
+# Session files
+/runtime/session/*.json
+
+
+# Upload directories
+/public/images/licenses/*
+/public/images/vehicles/*
+!.gitkeep
