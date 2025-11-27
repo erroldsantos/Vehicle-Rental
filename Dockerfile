@@ -57,6 +57,48 @@ RUN echo '<VirtualHost *:80>\n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
     CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
 </VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+# Enable Apache mod_rewrite and alias
+RUN a2enmod rewrite alias
+
+# Configure Apache to serve SPA and route API
+RUN echo '<VirtualHost *:80>\n\
+    ServerAdmin webmaster@localhost\n\
+    DocumentRoot /var/www/html\n\
+\n\
+    # Static aliases for frontend build assets\n\
+    Alias /assets /var/www/html/frontend/dist/assets\n\
+    <Directory /var/www/html/frontend/dist/assets>\n\
+        Require all granted\n\
+        Options -Indexes\n\
+        AllowOverride None\n\
+    </Directory>\n\
+    Alias /vite.svg /var/www/html/frontend/dist/vite.svg\n\
+\n\
+    <Directory /var/www/html>\n\
+        Options -Indexes +FollowSymLinks\n\
+        AllowOverride All\n\
+        Require all granted\n\
+        RewriteEngine On\n\
+\
+        # 1) API to backend PHP\n\
+        RewriteRule ^api/(.*)$ /index.php/api/$1 [L,QSA]\n\
+\
+        # 2) Exclude existing files and frontend assets from rewrites\n\
+        RewriteCond %{REQUEST_FILENAME} -f\n\
+        RewriteRule ^ - [L]\n\
+        RewriteCond %{REQUEST_URI} ^/(assets/|vite\.svg) [OR]\n\
+        RewriteCond %{REQUEST_URI} ^/public/\n\
+        RewriteRule ^ - [L]\n\
+\
+        # 3) SPA fallback for any other non-file, non-API request\n\
+        RewriteCond %{REQUEST_URI} !^/api/\n\
+        RewriteCond %{REQUEST_FILENAME} !-d\n\
+        RewriteRule ^(.*)$ /frontend/dist/index.html [L]\n\
+    </Directory>\n\
+\
+    ErrorLog ${APACHE_LOG_DIR}/error.log\n\
+    CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
+</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
 # Set working directory
 WORKDIR /var/www/html
