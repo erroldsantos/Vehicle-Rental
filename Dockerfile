@@ -1,16 +1,21 @@
-# Multi-stage build for PHP backend + Vue.js frontend
+# ============================
+# Stage 1: Build Vue.js frontend
+# ============================
 FROM node:18-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Copy frontend files
+# Install dependencies
 COPY frontend/package*.json ./
 RUN npm install
 
+# Build frontend
 COPY frontend/ ./
-RUN node node_modules/vite/bin/vite.js build
+RUN npm run build
 
-# PHP Runtime Stage
+# ============================
+# Stage 2: PHP + Apache runtime
+# ============================
 FROM php:8.2-apache
 
 # Install system dependencies and PHP extensions
@@ -26,73 +31,30 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install -j$(nproc) gd pdo pdo_mysql mysqli \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Enable Apache mod_rewrite and alias
+# Enable Apache modules
 RUN a2enmod rewrite alias
 
-# Configure Apache to serve SPA and route API
+# Copy frontend build output into Apache public directory
+COPY --from=frontend-builder /app/frontend/dist/ /var/www/html/
+
+# Copy backend (LavaLust app) into container
+COPY backend/ /var/www/html/
+
+# Configure Apache VirtualHost
 RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
-    DocumentRoot /var/www/html\n\
-\n\
-    # Static aliases for frontend build assets\n\
-    Alias /assets /var/www/html/frontend/dist/assets\n\
-    <Directory /var/www/html/frontend/dist/assets>\n\
-        Require all granted\n\
-        Options -Indexes\n\
-        AllowOverride None\n\
-    </Directory>\n\
-    Alias /vite.svg /var/www/html/frontend/dist/vite.svg\n\
-\n\
-    <Directory /var/www/html>\n\
-        Options -Indexes +FollowSymLinks\n\
+    DocumentRoot /var/www/html/public\n\
+    <Directory /var/www/html/public>\n\
+        Options Indexes FollowSymLinks\n\
         AllowOverride All\n\
         Require all granted\n\
-        RewriteEngine On\n\
-\n\
-        # 1) Root redirect to frontend\n\
-        RewriteRule ^$ /frontend/dist/index.html [L]\n\
-\n\
-        # 2) API to backend PHP\n\
-        RewriteRule ^api/(.*)$ /index.php/api/$1 [L,QSA]\n\
-\n\
-        # 3) Exclude existing files and frontend assets from rewrites\n\
-        RewriteCond %{REQUEST_FILENAME} -f\n\
-        RewriteRule ^ - [L]\n\
-        RewriteCond %{REQUEST_URI} ^/(assets/|vite\\.svg) [OR]\n\
-        RewriteCond %{REQUEST_URI} ^/public/\n\
-        RewriteRule ^ - [L]\n\
-\n\
-        # 4) SPA fallback for any other non-file, non-API request\n\
-        RewriteCond %{REQUEST_URI} !^/api/\n\
-        RewriteCond %{REQUEST_FILENAME} !-d\n\
-        RewriteRule ^(.*)$ /frontend/dist/index.html [L]\n\
     </Directory>\n\
-\n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
     CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
+    ServerName localhost\n\
 </VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
-# Set working directory
-WORKDIR /var/www/html
-
-# Copy application files (backend)
-COPY --chown=www-data:www-data . .
-
-# Copy built frontend from builder stage
-COPY --from=frontend-builder --chown=www-data:www-data /app/frontend/dist ./frontend/dist
-
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Install PHP dependencies
-RUN cd app && composer install --no-dev --optimize-autoloader
-
-# Create necessary directories with proper permissions
-RUN mkdir -p runtime/logs runtime/session public/images/vehicles public/images/licenses \
-    && chown -R www-data:www-data runtime public/images \
-    && chmod -R 755 runtime public/images
-
-# Expose port 80
+# Expose port
 EXPOSE 80
 
 # Start Apache
