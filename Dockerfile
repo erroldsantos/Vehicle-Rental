@@ -8,7 +8,7 @@ COPY frontend/package*.json ./
 RUN npm install
 
 COPY frontend/ ./
-RUN npm run build
+RUN node node_modules/vite/bin/vite.js build
 
 # PHP Runtime Stage
 FROM php:8.2-apache
