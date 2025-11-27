@@ -59,11 +59,11 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
 $database['main'] = array(
     'driver'	=> 'mysql',
-    'hostname'	=> 'sql12.freesqldatabase.com',
-    'port'		=> '3306',
-    'username'	=> 'sql12809658',
-    'password'	=> 'bV7CfevRy8',
-    'database'	=> 'sql12809658',
+    'hostname'	=> getenv('DB_HOST') ?: 'localhost',
+    'port'		=> getenv('DB_PORT') ?: '3306',
+    'username'	=> getenv('DB_USER') ?: 'root',
+    'password'	=> getenv('DB_PASS') ?: '',
+    'database'	=> getenv('DB_NAME') ?: 'vehicle_rental',
     'charset'	=> 'utf8mb4',
     'dbprefix'	=> '',
     // Optional for SQLite
