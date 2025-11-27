@@ -57,31 +57,30 @@ RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
     DocumentRoot /var/www/html/frontend/dist\n\
 \n\
-    # Frontend directory\n\
-    <Directory /var/www/html/frontend/dist>\n\
-        Options -Indexes +FollowSymLinks\n\
-        AllowOverride None\n\
-        Require all granted\n\
-        \n\
-        RewriteEngine On\n\
-        RewriteBase /\n\
-        \n\
-        # API requests to backend\n\
-        RewriteCond %{REQUEST_URI} ^/api/\n\
-        RewriteRule ^api/(.*)$ /var/www/html/index.php/api/$1 [L,QSA]\n\
-        \n\
-        # SPA fallback\n\
-        RewriteCond %{REQUEST_FILENAME} !-f\n\
-        RewriteCond %{REQUEST_FILENAME} !-d\n\
-        RewriteRule ^ index.html [L]\n\
-    </Directory>\n\
-\n\
     # Backend directory\n\
     <Directory /var/www/html>\n\
         Options -Indexes +FollowSymLinks\n\
         AllowOverride All\n\
         Require all granted\n\
     </Directory>\n\
+\n\
+    # Frontend directory\n\
+    <Directory /var/www/html/frontend/dist>\n\
+        Options -Indexes +FollowSymLinks\n\
+        AllowOverride None\n\
+        Require all granted\n\
+    </Directory>\n\
+\n\
+    # Top-level rewrites (outside Directory directive)\n\
+    RewriteEngine On\n\
+    \n\
+    # API requests to backend PHP\n\
+    RewriteRule ^/api/(.*)$ /var/www/html/index.php/api/$1 [L,PT]\n\
+    \n\
+    # Everything else falls back to frontend SPA\n\
+    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_FILENAME} !-f\n\
+    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_FILENAME} !-d\n\
+    RewriteRule ^ /index.html [L]\n\
 \n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
     CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
