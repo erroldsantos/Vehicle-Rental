@@ -29,27 +29,33 @@ RUN apt-get update && apt-get install -y \
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
-# Configure Apache to serve frontend and route API to backend
+# Configure Apache
 RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
     DocumentRoot /var/www/html/frontend/dist\n\
 \n\
-    # API routes - proxy to backend\n\
-    AliasMatch ^/api/(.*)$ /var/www/html/index.php\n\
-    \n\
+    # Serve static frontend files\n\
+    <Directory /var/www/html/frontend/dist>\n\
+        Options -Indexes +FollowSymLinks\n\
+        AllowOverride None\n\
+        Require all granted\n\
+        \n\
+        RewriteEngine On\n\
+        # API requests - proxy to backend\n\
+        RewriteCond %{REQUEST_URI} ^/api/\n\
+        RewriteRule ^api/(.*)$ /var/www/html/index.php/$1 [L,PT]\n\
+        \n\
+        # Frontend - serve static files or index.html\n\
+        RewriteCond %{REQUEST_FILENAME} !-f\n\
+        RewriteCond %{REQUEST_FILENAME} !-d\n\
+        RewriteRule ^ index.html [L]\n\
+    </Directory>\n\
+\n\
     # Backend directory\n\
     <Directory /var/www/html>\n\
         Options -Indexes +FollowSymLinks\n\
         AllowOverride All\n\
         Require all granted\n\
-    </Directory>\n\
-\n\
-    # Serve frontend\n\
-    <Directory /var/www/html/frontend/dist>\n\
-        Options -Indexes +FollowSymLinks\n\
-        AllowOverride None\n\
-        Require all granted\n\
-        FallbackResource /index.html\n\
     </Directory>\n\
 \n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
