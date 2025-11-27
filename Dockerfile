@@ -78,7 +78,10 @@ RUN echo '<VirtualHost *:80>\n\
     </LocationMatch>\n\
 \n\
     RewriteEngine On\n\
-    RewriteRule ^/api/(.*)$ /var/www/html/index.php/api/$1 [L]\n\
+    # Only rewrite if not already rewritten (prevent loop)\n\
+    RewriteCond %{REQUEST_URI} ^/api/\n\
+    RewriteCond %{REQUEST_FILENAME} !-f\n\
+    RewriteRule ^api/(.*)$ /index.php/api/$1 [L]\n\
 \n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
     CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
