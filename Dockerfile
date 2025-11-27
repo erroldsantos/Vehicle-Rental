@@ -26,37 +26,37 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install -j$(nproc) gd pdo pdo_mysql mysqli \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Enable Apache mod_rewrite
-RUN a2enmod rewrite
+# Enable Apache mod_rewrite and alias
+RUN a2enmod rewrite alias
 
 # Configure Apache
 RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
-    DocumentRoot /var/www/html/frontend/dist\n\
+    DocumentRoot /var/www/html\n\
 \n\
-    # Backend directory for API\n\
+    # API alias - serve backend PHP\n\
+    Alias /api /var/www/html/index.php\n\
+\n\
+    # Root directory\n\
     <Directory /var/www/html>\n\
         Options -Indexes +FollowSymLinks\n\
         AllowOverride All\n\
         Require all granted\n\
+        \n\
+        RewriteEngine On\n\
+        \n\
+        # Serve frontend from /frontend/dist for root and non-api paths\n\
+        RewriteCond %{REQUEST_URI} !^/api/\n\
+        RewriteCond %{REQUEST_URI} !^/index\\.php\n\
+        RewriteRule ^(.*)$ /frontend/dist/$1 [L]\n\
     </Directory>\n\
 \n\
-    # Frontend directory\n\
+    # Frontend directory - SPA fallback\n\
     <Directory /var/www/html/frontend/dist>\n\
         Options -Indexes +FollowSymLinks\n\
         AllowOverride None\n\
         Require all granted\n\
-        \n\
-        RewriteEngine On\n\
-        \n\
-        # API requests - rewrite to backend\n\
-        RewriteCond %{REQUEST_URI} ^/api/(.*)$\n\
-        RewriteRule ^api/(.*)$ /var/www/html/index.php [L,E=PATH_INFO:/api/$1,QSA]\n\
-        \n\
-        # SPA fallback for frontend routes\n\
-        RewriteCond %{REQUEST_FILENAME} !-f\n\
-        RewriteCond %{REQUEST_FILENAME} !-d\n\
-        RewriteRule ^ /index.html [L]\n\
+        FallbackResource /frontend/dist/index.html\n\
     </Directory>\n\
 \n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
