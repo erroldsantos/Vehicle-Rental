@@ -34,27 +34,22 @@ RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
     DocumentRoot /var/www/html/frontend/dist\n\
 \n\
-    # Serve frontend\n\
-    <Directory /var/www/html/frontend/dist>\n\
-        Options -Indexes +FollowSymLinks\n\
-        AllowOverride All\n\
-        Require all granted\n\
-        RewriteEngine On\n\
-        # Don'\''t rewrite files or directories\n\
-        RewriteCond %{REQUEST_FILENAME} !-f\n\
-        RewriteCond %{REQUEST_FILENAME} !-d\n\
-        # Pass API requests to backend\n\
-        RewriteCond %{REQUEST_URI} ^/api\n\
-        RewriteRule ^(.*)$ /var/www/html/index.php/$1 [L,QSA]\n\
-        # SPA fallback for frontend\n\
-        RewriteRule . /index.html [L]\n\
-    </Directory>\n\
-\n\
+    # API routes - proxy to backend\n\
+    AliasMatch ^/api/(.*)$ /var/www/html/index.php\n\
+    \n\
     # Backend directory\n\
     <Directory /var/www/html>\n\
         Options -Indexes +FollowSymLinks\n\
         AllowOverride All\n\
         Require all granted\n\
+    </Directory>\n\
+\n\
+    # Serve frontend\n\
+    <Directory /var/www/html/frontend/dist>\n\
+        Options -Indexes +FollowSymLinks\n\
+        AllowOverride None\n\
+        Require all granted\n\
+        FallbackResource /index.html\n\
     </Directory>\n\
 \n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
