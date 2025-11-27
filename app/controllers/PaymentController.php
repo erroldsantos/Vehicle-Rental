@@ -183,7 +183,6 @@ class PaymentController extends Controller {
             // Get the checkout URL from the source
             $checkout_url = null;
             
-            // Try different possible locations for checkout URL
             if (isset($source->redirect) && isset($source->redirect->checkout_url)) {
                 $checkout_url = $source->redirect->checkout_url;
             } elseif (isset($source->redirect) && is_array($source->redirect) && isset($source->redirect['checkout_url'])) {
@@ -228,7 +227,6 @@ class PaymentController extends Controller {
             $payload = @file_get_contents('php://input');
             $signature = isset($_SERVER['HTTP_PAYMONGO_SIGNATURE']) ? $_SERVER['HTTP_PAYMONGO_SIGNATURE'] : '';
             
-            // Log webhook for debugging
             error_log('=== PayMongo Webhook Received ===');
             error_log('Payload: ' . $payload);
             error_log('Signature: ' . $signature);
@@ -303,7 +301,7 @@ class PaymentController extends Controller {
         error_log('Source ID: ' . $sourceId);
         
         $payment = $this->paymongo->createPayment([
-            'amount' => $source->amount / 100, // Convert from centavos
+            'amount' => $source->amount / 100,
             'source_id' => $sourceId,
             'currency' => 'PHP',
             'description' => 'Vehicle Rental Booking #' . $booking_id,

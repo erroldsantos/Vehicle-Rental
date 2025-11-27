@@ -58,7 +58,6 @@ class MaintenanceController extends Controller {
         $this->api->require_method('GET');
         
         try {
-            // Get vehicles that are not rented using Vehicle model
             $filters = ['exclude_rented' => true];
             $vehicles = $this->Vehicle->getAllVehicles($filters);
             
