@@ -64,7 +64,7 @@ $config['VERSION']                 = '4.4.0';
 | -------------------------------------------------------------------
 | Values: development and production
 */
-$config['ENVIRONMENT']             = 'production';
+$config['ENVIRONMENT']             = 'development';
 
 /*
 |--------------------------------------------------------------------------
@@ -79,7 +79,7 @@ $config['ENVIRONMENT']             = 'production';
 | WARNING: You MUST set this value!
 |
 */
-$config['base_url'] 				= 'http://localhost/Vehicle-Rental/';
+$config['base_url'] 				= 'https://vehicle-rental-eqk7.onrender.com/';
 
 /*
 |--------------------------------------------------------------------------
