@@ -344,7 +344,7 @@ class AuthController extends Controller {
             
             if (empty($token)) {
                 // Redirect to Vue with error
-                $redirectUrl = 'http://localhost:5173/verify-email?status=error&message=' . urlencode('Verification token is required');
+                $redirectUrl = 'https://vehicle-rental-eqk7.onrender.com/verify-email?status=error&message=' . urlencode('Verification token is required');
                 header("Location: $redirectUrl");
                 exit;
             }
@@ -354,12 +354,12 @@ class AuthController extends Controller {
             
             if ($verified) {
                 // Redirect to Vue with success
-                $redirectUrl = 'http://localhost:5173/verify-email?status=success&message=' . urlencode('Your email has been successfully verified!');
+                $redirectUrl = 'https://vehicle-rental-eqk7.onrender.com/verify-email?status=success&message=' . urlencode('Your email has been successfully verified!');
                 header("Location: $redirectUrl");
                 exit;
             } else {
                 // Redirect to Vue with error
-                $redirectUrl = 'http://localhost:5173/verify-email?status=error&message=' . urlencode('Email verification failed');
+                $redirectUrl = 'https://vehicle-rental-eqk7.onrender.com/verify-email?status=error&message=' . urlencode('Email verification failed');
                 header("Location: $redirectUrl");
                 exit;
             }
@@ -367,9 +367,9 @@ class AuthController extends Controller {
         } catch (Exception $e) {
             // Check if already verified
             if (strpos($e->getMessage(), 'already verified') !== false) {
-                $redirectUrl = 'http://localhost:5173/verify-email?status=already-verified&message=' . urlencode('Your email is already verified. You can login now.');
+                $redirectUrl = 'https://vehicle-rental-eqk7.onrender.com/verify-email?status=already-verified&message=' . urlencode('Your email is already verified. You can login now.');
             } else {
-                $redirectUrl = 'http://localhost:5173/verify-email?status=error&message=' . urlencode($e->getMessage());
+                $redirectUrl = 'https://vehicle-rental-eqk7.onrender.com/verify-email?status=error&message=' . urlencode($e->getMessage());
             }
             header("Location: $redirectUrl");
             exit;
