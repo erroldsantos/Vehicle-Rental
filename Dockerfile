@@ -26,19 +26,23 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install -j$(nproc) gd pdo pdo_mysql mysqli \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Enable Apache mod_rewrite, headers, and proxy
-RUN a2enmod rewrite headers proxy proxy_http
+# Enable Apache mod_rewrite
+RUN a2enmod rewrite
 
 # Configure Apache
 RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
     DocumentRoot /var/www/html/frontend/dist\n\
 \n\
+    # Route API to backend index.php\n\
+    ScriptAliasMatch ^/api/(.*) /var/www/html/index.php/api/$1\n\
+\n\
     # Backend directory for API\n\
     <Directory /var/www/html>\n\
-        Options -Indexes +FollowSymLinks\n\
+        Options -Indexes +FollowSymLinks +ExecCGI\n\
         AllowOverride All\n\
         Require all granted\n\
+        SetHandler application/x-httpd-php\n\
     </Directory>\n\
 \n\
     # Frontend directory\n\
@@ -48,16 +52,9 @@ RUN echo '<VirtualHost *:80>\n\
         Require all granted\n\
         \n\
         RewriteEngine On\n\
-        RewriteBase /\n\
-        \n\
-        # API requests - route to backend PHP\n\
-        RewriteCond %{REQUEST_URI} ^/api/\n\
-        RewriteRule ^api/(.*)$ /var/www/html/index.php/api/$1 [L,P,QSA]\n\
-        \n\
-        # Frontend SPA - serve static files or fallback to index.html\n\
+        # SPA fallback - serve static files or index.html\n\
         RewriteCond %{REQUEST_FILENAME} !-f\n\
         RewriteCond %{REQUEST_FILENAME} !-d\n\
-        RewriteCond %{REQUEST_URI} !^/api/\n\
         RewriteRule ^ /index.html [L]\n\
     </Directory>\n\
 \n\
