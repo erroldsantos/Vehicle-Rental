@@ -52,7 +52,7 @@ RUN mkdir -p runtime/logs runtime/session public/images/vehicles public/images/l
     && chown -R www-data:www-data runtime public/images \
     && chmod -R 755 runtime public/images
 
-# Configure Apache VirtualHost
+# Configure Apache VirtualHost with FallbackResource
 RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
     DocumentRoot /var/www/html/frontend/dist\n\
@@ -64,23 +64,21 @@ RUN echo '<VirtualHost *:80>\n\
         Require all granted\n\
     </Directory>\n\
 \n\
-    # Frontend directory\n\
+    # Frontend directory with SPA fallback\n\
     <Directory /var/www/html/frontend/dist>\n\
         Options -Indexes +FollowSymLinks\n\
         AllowOverride None\n\
         Require all granted\n\
+        FallbackResource /index.html\n\
     </Directory>\n\
 \n\
-    # Top-level rewrites (outside Directory directive)\n\
+    # Intercept /api requests and route to backend\n\
+    <LocationMatch "^/api">\n\
+        FallbackResource disabled\n\
+    </LocationMatch>\n\
+\n\
     RewriteEngine On\n\
-    \n\
-    # API requests to backend PHP\n\
-    RewriteRule ^/api/(.*)$ /var/www/html/index.php/api/$1 [L,PT]\n\
-    \n\
-    # Everything else falls back to frontend SPA\n\
-    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_FILENAME} !-f\n\
-    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_FILENAME} !-d\n\
-    RewriteRule ^ /index.html [L]\n\
+    RewriteRule ^/api/(.*)$ /var/www/html/index.php/api/$1 [L]\n\
 \n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
     CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
