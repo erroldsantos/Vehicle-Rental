@@ -292,8 +292,8 @@ export default {
       if (!path) return ''
       // Remove 'public/' prefix if it exists and add proper base URL
       const cleanPath = path.replace(/^public\//, '')
-      // Use the full backend URL
-      return `http://localhost/Vehicle-Rental-/${cleanPath}`
+      // Use the API path
+      return `/api/${cleanPath}`
     }
 
     const showAlert = (type, message) => {
