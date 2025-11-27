@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y \
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
-# Configure Apache to serve frontend and proxy API to backend
+# Configure Apache to serve frontend and route API to backend
 RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
     DocumentRoot /var/www/html/frontend/dist\n\
@@ -42,8 +42,11 @@ RUN echo '<VirtualHost *:80>\n\
         FallbackResource /index.html\n\
     </Directory>\n\
 \n\
-    # API routes go to PHP backend\n\
-    Alias /api /var/www/html\n\
+    # Route /api requests to PHP backend\n\
+    RewriteEngine On\n\
+    RewriteRule ^/api/(.*)$ /index.php/$1 [L,QSA]\n\
+\n\
+    # Backend directory\n\
     <Directory /var/www/html>\n\
         Options -Indexes +FollowSymLinks\n\
         AllowOverride All\n\
