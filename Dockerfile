@@ -29,13 +29,23 @@ RUN apt-get update && apt-get install -y \
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
-# Configure Apache
+# Configure Apache to serve frontend and proxy API to backend
 RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
-    DocumentRoot /var/www/html\n\
+    DocumentRoot /var/www/html/frontend/dist\n\
 \n\
+    # Serve frontend\n\
+    <Directory /var/www/html/frontend/dist>\n\
+        Options -Indexes +FollowSymLinks\n\
+        AllowOverride All\n\
+        Require all granted\n\
+        FallbackResource /index.html\n\
+    </Directory>\n\
+\n\
+    # API routes go to PHP backend\n\
+    Alias /api /var/www/html\n\
     <Directory /var/www/html>\n\
-        Options Indexes FollowSymLinks\n\
+        Options -Indexes +FollowSymLinks\n\
         AllowOverride All\n\
         Require all granted\n\
     </Directory>\n\
@@ -47,7 +57,7 @@ RUN echo '<VirtualHost *:80>\n\
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy application files
+# Copy application files (backend)
 COPY --chown=www-data:www-data . .
 
 # Copy built frontend from builder stage
@@ -63,15 +73,6 @@ RUN cd app && composer install --no-dev --optimize-autoloader
 RUN mkdir -p runtime/logs runtime/session public/images/vehicles public/images/licenses \
     && chown -R www-data:www-data runtime public/images \
     && chmod -R 755 runtime public/images
-
-# Create .htaccess if it doesn't exist
-RUN if [ ! -f .htaccess ]; then \
-    if [ -f htaccess.example ]; then \
-        cp htaccess.example .htaccess; \
-    else \
-        echo 'RewriteEngine On\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteRule ^(.*)$ index.php/$1 [L]' > .htaccess; \
-    fi \
-    fi
 
 # Expose port 80
 EXPOSE 80
