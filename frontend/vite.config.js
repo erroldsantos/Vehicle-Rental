@@ -13,7 +13,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost/Vehicle-Rental',
+        target: 'https://vehicle-rental-eqk7.onrender.com',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path
