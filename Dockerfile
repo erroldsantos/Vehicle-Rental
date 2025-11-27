@@ -52,10 +52,13 @@ RUN mkdir -p runtime/logs runtime/session public/images/vehicles public/images/l
     && chown -R www-data:www-data runtime public/images \
     && chmod -R 755 runtime public/images
 
-# Configure Apache VirtualHost with FallbackResource
+# Configure Apache VirtualHost with Alias for API
 RUN echo '<VirtualHost *:80>\n\
     ServerAdmin webmaster@localhost\n\
     DocumentRoot /var/www/html/frontend/dist\n\
+\n\
+    # Alias /api to backend index.php\n\
+    AliasMatch ^/api(/.*)?$ /var/www/html/index.php/api$1\n\
 \n\
     # Backend directory\n\
     <Directory /var/www/html>\n\
@@ -69,19 +72,14 @@ RUN echo '<VirtualHost *:80>\n\
         Options -Indexes +FollowSymLinks\n\
         AllowOverride None\n\
         Require all granted\n\
-        FallbackResource /index.html\n\
+        \n\
+        RewriteEngine On\n\
+        RewriteBase /\n\
+        # SPA fallback - only for non-files\n\
+        RewriteCond %{REQUEST_FILENAME} !-f\n\
+        RewriteCond %{REQUEST_FILENAME} !-d\n\
+        RewriteRule ^ index.html [L]\n\
     </Directory>\n\
-\n\
-    # Intercept /api requests and route to backend\n\
-    <LocationMatch "^/api">\n\
-        FallbackResource disabled\n\
-    </LocationMatch>\n\
-\n\
-    RewriteEngine On\n\
-    # Only rewrite if not already rewritten (prevent loop)\n\
-    RewriteCond %{REQUEST_URI} ^/api/\n\
-    RewriteCond %{REQUEST_FILENAME} !-f\n\
-    RewriteRule ^api/(.*)$ /index.php/api/$1 [L]\n\
 \n\
     ErrorLog ${APACHE_LOG_DIR}/error.log\n\
     CustomLog ${APACHE_LOG_DIR}/access.log combined\n\
