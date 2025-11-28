@@ -1,4 +1,7 @@
 <?php
+// Start output buffering to prevent "headers already sent" errors
+ob_start();
+
 define('PREVENT_DIRECT_ACCESS', TRUE);
 
 // Load environment variables from .env file
@@ -115,4 +118,7 @@ define('PUBLIC_DIR', $public_folder);
  * ------------------------------------------------------
  */
 require_once SYSTEM_DIR . 'kernel/LavaLust.php';
+
+// Flush output buffer
+ob_end_flush();
 ?>
