@@ -1,6 +1,10 @@
 ﻿<?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
+/**
+ * Payment Controller
+ * Handles payment processing and PayMongo integration
+ */
 class PaymentController extends Controller {
     
     public function __construct() {
