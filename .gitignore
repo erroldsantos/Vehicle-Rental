@@ -19,6 +19,9 @@ Thumbs.db
 # Session files
 /runtime/session/*.json
 
+# Node modules
+/node_modules
+/dist
 
 # Upload directories
 /public/images/licenses/*
