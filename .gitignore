@@ -20,8 +20,8 @@ Thumbs.db
 /runtime/session/*.json
 
 # Node modules
-/node_modules
-/dist
+/frontend/node_modules
+/frontend/dist
 
 # Upload directories
 /public/images/licenses/*
