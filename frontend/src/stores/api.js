@@ -3,10 +3,11 @@ import axios from 'axios'
 
 // Create axios instance with defaults
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://vehiclerental.infinityfreeapp.com/api',
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: false
 })
 
 // Add response interceptor for consistent error handling

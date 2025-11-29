@@ -214,7 +214,7 @@
             <div class="radio-group">
               <label>
                 <input type="radio" v-model="inspection.has_damage" :value="false" required />
-                <span class="status-ok"><i class="fas fa-check-circle"></i> No Damage</span>
+                <span><i class="fas fa-check-circle"></i> No Damage</span>
               </label>
               <label>
                 <input type="radio" v-model="inspection.has_damage" :value="true" required />

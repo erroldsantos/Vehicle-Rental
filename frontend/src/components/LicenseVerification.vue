@@ -293,7 +293,7 @@ export default {
       // Remove 'public/' prefix if it exists and add proper base URL
       const cleanPath = path.replace(/^public\//, '')
       // Use the full backend URL
-      return `http://localhost/Vehicle-Rental-/${cleanPath}`
+      return `https://vehiclerental.infinityfreeapp.com/${cleanPath}`
     }
 
     const showAlert = (type, message) => {
