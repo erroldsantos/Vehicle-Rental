@@ -203,56 +203,6 @@ return [
 ngrok http 80
 # Use the ngrok URL for webhook: https://abc123.ngrok.io/api/webhook/paymongo
 ```
-
----
-
-## Email Configuration
-
-**File:** `app/config/email.php`
-
-### SMTP Configuration
-```php
-return [
-    'protocol' => 'smtp',
-    'smtp_host' => 'smtp.gmail.com',        // Your SMTP host
-    'smtp_port' => 587,                      // 587 for TLS, 465 for SSL
-    'smtp_user' => 'your-email@gmail.com',  // Your email
-    'smtp_pass' => 'your-app-password',     // App-specific password
-    'smtp_crypto' => 'tls',                 // tls or ssl
-    'from_email' => 'noreply@yourdomain.com',
-    'from_name' => 'Vehicle Rental System',
-    'charset' => 'utf-8',
-    'mailtype' => 'html'
-];
-```
-
-### Gmail Setup
-
-1. **Enable 2-Factor Authentication**
-2. **Generate App Password:**
-   - Google Account → Security → 2-Step Verification → App Passwords
-   - Select "Mail" and "Other (Custom name)"
-   - Copy generated password
-3. **Use app password in `smtp_pass`**
-
-### Other Email Services
-
-**SendGrid:**
-```php
-'smtp_host' => 'smtp.sendgrid.net',
-'smtp_port' => 587,
-'smtp_user' => 'apikey',
-'smtp_pass' => 'your-sendgrid-api-key',
-```
-
-**Mailgun:**
-```php
-'smtp_host' => 'smtp.mailgun.org',
-'smtp_port' => 587,
-'smtp_user' => 'postmaster@yourdomain.mailgun.org',
-'smtp_pass' => 'your-mailgun-password',
-```
-
 ---
 
 ## File Upload Configuration
@@ -314,8 +264,13 @@ $config['image_base_url'] = 'http://localhost/Vehicle-Rental/public/images/';
 
 **Production:**
 ```php
-$config['image_base_url'] = 'https://yourdomain.com/public/images/';
+$config['image_base_url'] = 'https://vehicle-rental-production-6cce.up.railway.app/public/images/';
 ```
+3. **Setup Webhook:**
+   - Dashboard → Developers → Webhooks
+   - Create webhook for: `payment.paid`
+   - Webhook URL: `https://vehicle-rental-production-6cce.up.railway.app/api/webhook/paymongo`
+   - Copy Webhook Secret
 
 ---
 

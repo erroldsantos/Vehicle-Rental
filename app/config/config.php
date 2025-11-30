@@ -79,7 +79,7 @@ $config['ENVIRONMENT']             = 'production';
 | WARNING: You MUST set this value!
 |
 */
-$config['base_url'] 				= 'http://localhost/Vehicle-Rental/';
+$config['base_url'] 				= 'https://vehicle-rental-production-6cce.up.railway.app/';
 
 /*
 |--------------------------------------------------------------------------
@@ -317,4 +317,4 @@ $config['csrf_regenerate']         = FALSE;
 | Allow Vue dev server (typically runs on port 5173) to access the API
 |
 */
-$config['allow_origin']            = '*';
+$config['allow_origin']            = 'https://vehicle-rental-liart.vercel.app';

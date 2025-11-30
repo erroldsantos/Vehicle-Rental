@@ -85,9 +85,9 @@ $config['paymongo_webhook_events'] = [
 | URLs for successful and failed payments
 |
 */
-$config['paymongo_success_url'] = base_url() . 'payment/success';
-$config['paymongo_failed_url'] = base_url() . 'payment/failed';
-$config['paymongo_webhook_url'] = base_url() . 'api/webhook/paymongo';
+$config['paymongo_success_url'] = 'https://vehicle-rental-production-6cce.up.railway.app/payment/success';
+$config['paymongo_failed_url'] = 'https://vehicle-rental-production-6cce.up.railway.app/payment/failed';
+$config['paymongo_webhook_url'] = 'https://vehicle-rental-production-6cce.up.railway.app/api/webhook/paymongo';
 
 /*
 |--------------------------------------------------------------------------
