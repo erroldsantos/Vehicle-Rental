@@ -259,6 +259,14 @@ class User extends Model {
     }
     
     /**
+     * Get users for booking form (simple list with id, name, email)
+     */
+    public function getUsersForBooking() {
+        $stmt = $this->db->raw("SELECT id, first_name, last_name, email FROM users WHERE deleted_at IS NULL ORDER BY first_name, last_name");
+        return $stmt->fetchAll();
+    }
+    
+    /**
      * Get user statistics
      */
     public function getUserStats() {
@@ -269,13 +277,13 @@ class User extends Model {
         $result = $stmt->fetch();
         $stats['total_users'] = $result['count'];
         
-        // Active users
-        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE status = 'active' AND deleted_at IS NULL");
+        // Active users (verified users)
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE email_verified = 1 AND deleted_at IS NULL");
         $result = $stmt->fetch();
         $stats['active_users'] = $result['count'];
         
-        // Inactive users
-        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE status = 'inactive' AND deleted_at IS NULL");
+        // Inactive users (not verified users)
+        $stmt = $this->db->raw("SELECT COUNT(*) as count FROM users WHERE email_verified = 0 AND deleted_at IS NULL");
         $result = $stmt->fetch();
         $stats['inactive_users'] = $result['count'];
         

@@ -164,6 +164,7 @@
           <span>Booking Ref</span>
           <span>Customer</span>
           <span>Cost</span>
+          <span>Payment Status</span>
           <span>Actions</span>
         </div>
         <div class="table-row" v-for="record in maintenance" :key="record.id">
@@ -172,10 +173,13 @@
           <span class="booking-ref">{{ record.booking_reference || '-' }}</span>
           <span class="customer-name">{{ record.customer_name || '-' }}</span>
           <span class="cost">₱{{ parseFloat(record.cost).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+          <span class="payment-status">
+            <span v-if="record.payment_status" :class="['status-badge', record.payment_status]">
+              {{ record.payment_status.charAt(0).toUpperCase() + record.payment_status.slice(1) }}
+            </span>
+            <span v-else class="status-badge paid">Paid</span>
+          </span>
           <span class="actions">
-            <button v-if="record.status === 'pending'" class="action-btn-sm success" @click="markAsPaid(record)" title="Mark as Paid">
-              <i class="fas fa-dollar-sign"></i>
-            </button>
             <button v-if="record.status === 'scheduled'" class="action-btn-sm" @click="completeMaintenance(record)" title="Complete">
               <i class="fas fa-check"></i>
             </button>
@@ -387,24 +391,6 @@ export default {
       }
     }
 
-    const markAsPaid = async (record) => {
-      if (!confirm(`Mark damage repair as paid for ${record.vehicle_display}?\n\nCustomer: ${record.customer_name}\nBooking: ${record.booking_reference}\nCost: ₱${parseFloat(record.cost).toFixed(2)}\n\nThis will move the vehicle to maintenance and complete the booking.`)) {
-        return
-      }
-
-      try {
-        console.log('Marking damage as paid:', record.id)
-        const response = await apiStore.put(`/maintenance/${record.id}/mark-paid`, {})
-        console.log('Mark as paid response:', response)
-        
-        await loadMaintenance()
-        alert('Damage payment recorded! Vehicle is now in maintenance for repairs.')
-      } catch (error) {
-        console.error('Failed to mark as paid:', error)
-        alert('Failed to mark as paid: ' + (error.response?.data?.message || error.message))
-      }
-    }
-
     const deleteMaintenance = async (id) => {
       console.log('Delete maintenance clicked for ID:', id)
       
@@ -472,7 +458,6 @@ export default {
       updateMaintenance,
       cancelEdit,
       completeMaintenance,
-      markAsPaid,
       deleteMaintenance,
       syncVehicleStatuses,
       formatDate,
@@ -491,8 +476,22 @@ export default {
   color: #f39c12;
 }
 
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
 .status-badge.pending {
   background-color: #f39c12;
+  color: white;
+}
+
+.status-badge.paid {
+  background-color: #27ae60;
   color: white;
 }
 
@@ -502,13 +501,10 @@ export default {
   color: #666;
 }
 
-.action-btn-sm.success {
-  background-color: #27ae60;
-  color: white;
-}
-
-.action-btn-sm.success:hover {
-  background-color: #219a52;
+.payment-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .actions {

@@ -294,23 +294,7 @@ class AdminController extends Controller {
     
     private function getRecentActivity() {
         try {
-            // Get recent bookings with user and vehicle info
-            $query = "SELECT 
-                        b.id,
-                        b.booking_reference,
-                        b.status,
-                        b.created_at,
-                        u.fullname as user_name,
-                        CONCAT(v.brand, ' ', v.model) as vehicle_name
-                      FROM bookings b
-                      LEFT JOIN users u ON b.user_id = u.id
-                      LEFT JOIN vehicles v ON b.vehicle_id = v.id
-                      WHERE b.deleted_at IS NULL
-                      ORDER BY b.created_at DESC
-                      LIMIT 10";
-            
-            $stmt = $this->db->raw($query);
-            $bookings = $stmt->fetchAll();
+            $bookings = $this->Booking->getRecentActivity(10);
             
             $activities = [];
             foreach ($bookings as $booking) {
@@ -392,12 +376,7 @@ class AdminController extends Controller {
         $this->api->require_method('GET');
         
         try {
-            $pendingLicenses = $this->User->getPendingLicenses();
-            
-            // Convert to array if needed
-            $licenses = array_map(function($license) {
-                return is_object($license) ? (array)$license : $license;
-            }, $pendingLicenses);
+            $licenses = $this->User->getPendingLicenses();
             
             $this->api->respond([
                 'licenses' => $licenses,
@@ -431,12 +410,7 @@ class AdminController extends Controller {
         $this->api->require_method('GET');
         
         try {
-            $verifiedLicenses = $this->User->getVerifiedLicenses();
-            
-            // Convert to array if needed
-            $licenses = array_map(function($license) {
-                return is_object($license) ? (array)$license : $license;
-            }, $verifiedLicenses);
+            $licenses = $this->User->getVerifiedLicenses();
             
             $this->api->respond([
                 'licenses' => $licenses,
@@ -470,7 +444,6 @@ class AdminController extends Controller {
             
             // Get updated user
             $user = $this->User->getUserById($userId);
-            $user = is_object($user) ? (array)$user : $user;
             
             // Remove sensitive data
             if (isset($user['password'])) {
@@ -514,7 +487,6 @@ class AdminController extends Controller {
             
             // Get updated user
             $user = $this->User->getUserById($userId);
-            $user = is_object($user) ? (array)$user : $user;
             
             // Remove sensitive data
             if (isset($user['password'])) {

@@ -9,8 +9,8 @@
         variant="primary"
       />
       <StatsCard
-        title="Confirmed Bookings"
-        :value="stats.activeBookings"
+        title="Current Bookings"
+        :value="stats.currentBookings"
         icon="fas fa-calendar-check"
         variant="primary"
       />
@@ -21,8 +21,8 @@
         variant="primary"
       />
       <StatsCard
-        title="Maintenance Due"
-        :value="stats.maintenanceDue"
+        title="Maintenance Vehicles"
+        :value="stats.maintenanceVehicles"
         icon="fas fa-wrench"
         variant="primary"
       />
@@ -47,19 +47,19 @@
       </div>
     </div>
 
-    <!-- Pending Bookings -->
-    <div class="dashboard-section pending-section">
+    <!-- Current Bookings (Pending, Active & Ongoing) -->
+    <div class="dashboard-section current-bookings-section">
       <div class="section-header">
-        <h2><i class="fas fa-clock"></i> Pending Bookings</h2>
+        <h2><i class="fas fa-calendar-check"></i> Current Bookings</h2>
         <a href="#" class="view-all-link" @click.prevent="navigateToBookings">View All →</a>
       </div>
-      <div v-if="loadingPending" class="loading-state">
+      <div v-if="loadingPending || loadingActive || loadingOngoing" class="loading-state">
         <i class="fas fa-spinner fa-spin"></i>
-        <p>Loading pending bookings...</p>
+        <p>Loading bookings...</p>
       </div>
-      <div v-else-if="pendingBookings.length === 0" class="empty-state">
+      <div v-else-if="allCurrentBookings.length === 0" class="empty-state">
         <i class="fas fa-calendar-alt"></i>
-        <p>No pending bookings</p>
+        <p>No current bookings</p>
       </div>
       <div v-else class="bookings-table">
         <div class="table-row header-row">
@@ -69,92 +69,22 @@
           <span>Start Date</span>
           <span>End Date</span>
           <span>Amount</span>
+          <span>Status</span>
           <span>Actions</span>
         </div>
-        <div class="table-row pending-row" v-for="booking in pendingBookings" :key="booking.id">
+        <div class="table-row" v-for="booking in allCurrentBookings" :key="booking.id">
           <span class="reference">{{ booking.booking_reference }}</span>
           <span>{{ booking.first_name }} {{ booking.last_name }}</span>
           <span>{{ booking.brand }} {{ booking.model }}</span>
           <span>{{ formatDate(booking.start_date) }}</span>
           <span>{{ formatDate(booking.end_date) }}</span>
           <span>₱{{ parseFloat(booking.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+          <span>
+            <span :class="['status-badge', booking.status]">
+              {{ booking.status }}
+            </span>
+          </span>
           <span class="action-buttons">
-            <button class="btn-view" @click="viewBookingDetails(booking)" title="View Details">
-              <i class="fas fa-eye"></i>
-            </button>
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Active Bookings -->
-    <div class="dashboard-section active-section">
-      <div class="section-header">
-        <h2><i class="fas fa-calendar-day"></i> Active Bookings</h2>
-        <a href="#" class="view-all-link" @click.prevent="navigateToBookings">View All →</a>
-      </div>
-      <div v-if="loadingActive" class="loading-state">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>Loading active bookings...</p>
-      </div>
-      <div v-else-if="activeBookings.length === 0" class="empty-state">
-        <i class="fas fa-calendar-day"></i>
-        <p>No active bookings found</p>
-      </div>
-      <div v-else class="bookings-table">
-        <div class="table-row header-row">
-          <span>Reference</span>
-          <span>Customer</span>
-          <span>Vehicle</span>
-          <span>Start Date</span>
-          <span>End Date</span>
-          <span>Actions</span>
-        </div>
-        <div class="table-row" v-for="booking in activeBookings" :key="booking.id">
-          <span>{{ booking.booking_reference }}</span>
-          <span>{{ booking.first_name }} {{ booking.last_name }}</span>
-          <span>{{ booking.brand }} {{ booking.model }}</span>
-          <span>{{ formatDate(booking.start_date) }}</span>
-          <span>{{ formatDate(booking.end_date) }}</span>
-          <span>
-            <button class="btn-view" @click="viewBookingDetails(booking)" title="View Details">
-              <i class="fas fa-eye"></i>
-            </button>
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Ongoing Bookings -->
-    <div class="dashboard-section ongoing-section">
-      <div class="section-header">
-        <h2><i class="fas fa-car-side"></i> Ongoing Bookings</h2>
-        <a href="#" class="view-all-link" @click.prevent="navigateToBookings">View All →</a>
-      </div>
-      <div v-if="loadingOngoing" class="loading-state">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>Loading ongoing bookings...</p>
-      </div>
-      <div v-else-if="ongoingBookings.length === 0" class="empty-state">
-        <i class="fas fa-car-side"></i>
-        <p>No ongoing bookings found</p>
-      </div>
-      <div v-else class="bookings-table">
-        <div class="table-row header-row">
-          <span>Reference</span>
-          <span>Customer</span>
-          <span>Vehicle</span>
-          <span>Start Date</span>
-          <span>End Date</span>
-          <span>Actions</span>
-        </div>
-        <div class="table-row" v-for="booking in ongoingBookings" :key="booking.id">
-          <span>{{ booking.booking_reference }}</span>
-          <span>{{ booking.first_name }} {{ booking.last_name }}</span>
-          <span>{{ booking.brand }} {{ booking.model }}</span>
-          <span>{{ formatDate(booking.start_date) }}</span>
-          <span>{{ formatDate(booking.end_date) }}</span>
-          <span>
             <button class="btn-view" @click="viewBookingDetails(booking)" title="View Details">
               <i class="fas fa-eye"></i>
             </button>
@@ -238,14 +168,15 @@ export default {
     
     const stats = ref({
       totalVehicles: 0,
-      activeBookings: 0,
+      currentBookings: 0,
       totalRevenue: '0',
-      maintenanceDue: 0
+      maintenanceVehicles: 0
     })
 
     const activeBookings = ref([])
     const ongoingBookings = ref([])
     const pendingBookings = ref([])
+    const allCurrentBookings = ref([])
     const loading = ref(true)
     const loadingPending = ref(true)
     const loadingActive = ref(true)
@@ -334,19 +265,26 @@ export default {
         // Handle both {bookings: [...]} and {data: {bookings: [...]}} formats
         const bookings = data.bookings || data.data?.bookings || []
         
-        // Count confirmed bookings only
-        const activeBookings = bookings.filter(booking => 
-          booking.status === 'confirmed'
+        // Count current bookings (pending, active, ongoing)
+        const currentBookings = bookings.filter(booking => 
+          ['pending', 'active', 'ongoing'].includes(booking.status)
         ).length
         
-        stats.value.activeBookings = activeBookings
+        stats.value.currentBookings = currentBookings
         
-        // Calculate total revenue from completed bookings
-        const totalRevenue = bookings
-          .filter(booking => booking.status === 'completed')
-          .reduce((sum, booking) => sum + parseFloat(booking.total_amount || 0), 0)
-        
-        stats.value.totalRevenue = totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        // Get total revenue from completed payments
+        try {
+          const paymentData = await apiStore.get('/payments')
+          const payments = paymentData.payments || paymentData.data?.payments || []
+          const totalRevenue = payments
+            .filter(payment => payment.status === 'completed')
+            .reduce((sum, payment) => sum + parseFloat(payment.amount || 0), 0)
+          
+          stats.value.totalRevenue = totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        } catch (error) {
+          console.error('Error loading payment stats:', error)
+          stats.value.totalRevenue = '0.00'
+        }
       } catch (error) {
         console.error('Error loading booking stats:', error)
       }
@@ -365,6 +303,7 @@ export default {
           .slice(0, 10)  // Show latest 10 active bookings
         
         activeBookings.value = active
+        updateAllCurrentBookings()
       } catch (error) {
         console.error('Error loading active bookings:', error)
       } finally {
@@ -385,11 +324,32 @@ export default {
           .slice(0, 10)  // Show latest 10 ongoing bookings
         
         ongoingBookings.value = ongoing
+        updateAllCurrentBookings()
       } catch (error) {
         console.error('Error loading ongoing bookings:', error)
       } finally {
         loadingOngoing.value = false
       }
+    }
+
+    const updateAllCurrentBookings = () => {
+      // Combine all current bookings and sort by status priority then date
+      const statusPriority = { pending: 1, active: 2, ongoing: 3 }
+      const combined = [
+        ...pendingBookings.value,
+        ...activeBookings.value,
+        ...ongoingBookings.value
+      ]
+      
+      allCurrentBookings.value = combined
+        .sort((a, b) => {
+          // First sort by status priority
+          const priorityDiff = statusPriority[a.status] - statusPriority[b.status]
+          if (priorityDiff !== 0) return priorityDiff
+          // Then by date
+          return new Date(b.created_at || b.start_date) - new Date(a.created_at || a.start_date)
+        })
+        .slice(0, 15)  // Show up to 15 total bookings
     }
 
     const loadPendingBookings = async () => {
@@ -405,6 +365,7 @@ export default {
           .slice(0, 10)  // Show latest 10 pending bookings
         
         pendingBookings.value = pending
+        updateAllCurrentBookings()
       } catch (error) {
         console.error('Error loading pending bookings:', error)
       } finally {
@@ -414,20 +375,19 @@ export default {
 
     const loadMaintenanceStats = async () => {
       try {
-        const data = await apiStore.get('/maintenance')
-        // Handle both {maintenance: [...]} and {data: {maintenance: [...]}} formats
-        const maintenance = data.maintenance || data.data?.maintenance || []
+        const data = await apiStore.get('/vehicles')
+        // Handle both {vehicles: [...]} and {data: {vehicles: [...]}} formats
+        const vehicles = data.data?.vehicles || data.vehicles || []
         
-        // Count pending or scheduled maintenance
-        const maintenanceDue = maintenance.filter(item => 
-          item.status === 'pending' || item.status === 'scheduled'
+        // Count vehicles with maintenance status
+        const maintenanceVehicles = vehicles.filter(vehicle => 
+          vehicle.status === 'maintenance'
         ).length
         
-        stats.value.maintenanceDue = maintenanceDue
+        stats.value.maintenanceVehicles = maintenanceVehicles
       } catch (error) {
         console.error('Error loading maintenance stats:', error)
-        // If maintenance API doesn't exist, keep default value
-        stats.value.maintenanceDue = 0
+        stats.value.maintenanceVehicles = 0
       }
     }
 
@@ -440,6 +400,7 @@ export default {
       activeBookings,
       ongoingBookings,
       pendingBookings,
+      allCurrentBookings,
       loading,
       loadingPending,
       loadingActive,
@@ -645,17 +606,16 @@ export default {
 
 .bookings-table .table-row {
   display: grid;
-  grid-template-columns: 120px 1fr 1.2fr 110px 110px 120px 80px;
+  grid-template-columns: 130px 1fr 1.2fr 110px 110px 120px 100px 80px;
   gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid #e5e7eb;
   align-items: center;
 }
 
-/* Active and Ongoing sections without amount column */
-.active-section .bookings-table .table-row,
-.ongoing-section .bookings-table .table-row {
-  grid-template-columns: 140px 1.2fr 1.2fr 120px 120px 100px;
+/* Current bookings section with status column */
+.current-bookings-section .bookings-table .table-row {
+  grid-template-columns: 130px 1fr 1.2fr 110px 110px 120px 100px 80px;
 }
 
 .bookings-table .table-row.header-row {
@@ -701,40 +661,32 @@ export default {
   margin: 0;
 }
 
-/* Pending Bookings Styles */
-.pending-section {
+/* Current Bookings Section Styles */
+.current-bookings-section {
   background: white;
   border: 1px solid #e5e7eb;
 }
 
-.pending-section .section-header h2 {
+.current-bookings-section .section-header h2 {
   color: #1f2937;
 }
 
-.pending-section .section-header h2 i {
-  color: #f59e0b;
+.current-bookings-section .section-header h2 i {
+  color: #667eea;
   margin-right: 0.5rem;
 }
 
-.active-section .section-header h2 i {
-  color: #8b5cf6;
-  margin-right: 0.5rem;
+.status-badge.active {
+  background: #dbeafe;
+  color: #1e40af;
 }
 
-.ongoing-section .section-header h2 i {
-  color: #3b82f6;
-  margin-right: 0.5rem;
+.status-badge.ongoing {
+  background: #e0e7ff;
+  color: #4f46e5;
 }
 
-.pending-row {
-  background: white !important;
-}
-
-.pending-row:hover {
-  background: #f9fafb !important;
-}
-
-.pending-row .reference {
+.reference {
   font-weight: 600;
   color: #1f2937;
 }
@@ -744,44 +696,6 @@ export default {
   gap: 0.5rem;
   align-items: center;
   justify-content: flex-start;
-}
-
-.btn-pay {
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-  min-width: 40px;
-}
-
-.btn-pay:hover:not(:disabled) {
-  background: linear-gradient(135deg, #059669, #047857);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
-}
-
-.btn-pay:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-pay i {
-  font-size: 14px;
-}
-
-/* Adjust grid for pending bookings with two action buttons */
-.pending-section .bookings-table .table-row {
-  grid-template-columns: 140px 1.2fr 1.2fr 120px 120px 130px 120px;
 }
 
 /* Modal Styles */

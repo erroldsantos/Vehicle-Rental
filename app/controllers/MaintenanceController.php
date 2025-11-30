@@ -9,6 +9,7 @@ class MaintenanceController extends Controller {
         $this->call->model('Maintenance');
         $this->call->model('Vehicle');
         $this->call->model('Booking');
+        $this->call->model('Payment');
     }
 
     public function index() {
@@ -219,48 +220,24 @@ class MaintenanceController extends Controller {
 
             $maintenance = $this->Maintenance->createDamageInspection($damageData);
 
+            // Automatically create a pending payment for the damage
+            $paymentData = [
+                'booking_id' => $booking_id,
+                'amount' => $input['cost'] ?? 0,
+                'payment_date' => date('Y-m-d'),
+                'payment_method' => 'pending',
+                'payment_type' => 'full',
+                'status' => 'pending'
+            ];
+
+            $payment = $this->Payment->createPayment($paymentData);
+
             $this->api->respond([
-                'message' => 'Damage recorded - awaiting customer payment',
+                'message' => 'Damage recorded - pending payment created automatically',
                 'maintenance' => $maintenance,
+                'payment' => $payment,
                 'booking_status' => 'returned'
             ], 201);
-
-        } catch (Exception $e) {
-            $this->api->respond_error($e->getMessage(), $e->getCode() ?: 400);
-        }
-    }
-
-    /**
-     * PUT /maintenance/{id}/mark-paid - Mark damage as paid and start repair
-     */
-    public function markPaid($id) {
-        $this->api->require_method('PUT');
-
-        try {
-            $maintenance = $this->Maintenance->getMaintenanceById($id);
-            
-            if (!$maintenance) {
-                $this->api->respond_error('Maintenance record not found', 404);
-                return;
-            }
-
-            if ($maintenance['status'] !== 'pending') {
-                $this->api->respond_error('Only pending damage can be marked as paid', 400);
-                return;
-            }
-
-            // Mark as paid (changes status to scheduled)
-            $updated = $this->Maintenance->markDamagePaid($id);
-
-            // If there's a booking_id, complete the booking now that damage is paid
-            if ($maintenance['booking_id']) {
-                $this->Booking->updateBooking($maintenance['booking_id'], ['status' => 'completed']);
-            }
-
-            $this->api->respond([
-                'message' => 'Damage payment recorded - vehicle in maintenance',
-                'maintenance' => $updated
-            ]);
 
         } catch (Exception $e) {
             $this->api->respond_error($e->getMessage(), $e->getCode() ?: 400);

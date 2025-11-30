@@ -60,9 +60,6 @@ class Booking extends Model {
      * Get all bookings with user and vehicle details
      */
     public function getAllBookings($filters = []) {
-        // First, update booking statuses based on current date
-        $this->updateBookingStatuses();
-        
         $query = "SELECT b.id, b.booking_reference, b.user_id, b.vehicle_id, b.start_date, b.end_date, 
                          b.total_amount, b.status, b.notes, b.pickup_location, b.dropoff_location, b.created_at,
                          u.first_name, u.last_name, u.email,
@@ -114,9 +111,6 @@ class Booking extends Model {
      * Get booking by ID with user and vehicle details
      */
     public function getBookingById($id) {
-        // Update booking statuses first
-        $this->updateBookingStatuses();
-        
         $query = "SELECT b.*, 
                          u.first_name, u.last_name, u.email, u.phone,
                          v.brand, v.model, v.plate_number, v.daily_rate
@@ -130,9 +124,10 @@ class Booking extends Model {
     }
     
     /**
-     * Check vehicle availability for given dates
+     * Check if a vehicle has any booking conflicts for given dates
+     * Returns true if there's a conflict, false if available
      */
-    public function checkVehicleAvailability($vehicle_id, $start_date, $end_date, $exclude_booking_id = null) {
+    public function hasBookingConflict($vehicle_id, $start_date, $end_date, $exclude_booking_id = null) {
         $query = "SELECT COUNT(*) as count FROM bookings 
                   WHERE vehicle_id = ? 
                   AND status IN ('pending', 'confirmed', 'active', 'ongoing') 
@@ -151,7 +146,42 @@ class Booking extends Model {
         
         $stmt = $this->db->raw($query, $params);
         $result = $stmt->fetch();
-        return $result['count'] == 0;
+        return $result['count'] > 0;
+    }
+    
+    /**
+     * Check if a vehicle has maintenance conflicts for given dates
+     * Returns true if there's a conflict, false if available
+     */
+    public function hasMaintenanceConflict($vehicle_id, $start_date, $end_date) {
+        $query = "SELECT COUNT(*) as count 
+                  FROM maintenance 
+                  WHERE vehicle_id = ? 
+                  AND status = 'scheduled'
+                  AND deleted_at IS NULL
+                  AND (scheduled_date >= ? AND scheduled_date <= ?)";
+        
+        $stmt = $this->db->raw($query, [$vehicle_id, $start_date, $end_date]);
+        $result = $stmt->fetch();
+        return $result['count'] > 0;
+    }
+    
+    /**
+     * Check vehicle availability for given dates
+     * Returns true if available, false if not
+     */
+    public function checkVehicleAvailability($vehicle_id, $start_date, $end_date, $exclude_booking_id = null) {
+        // Check for booking conflicts
+        if ($this->hasBookingConflict($vehicle_id, $start_date, $end_date, $exclude_booking_id)) {
+            return false;
+        }
+        
+        // Check for maintenance conflicts
+        if ($this->hasMaintenanceConflict($vehicle_id, $start_date, $end_date)) {
+            return false;
+        }
+        
+        return true;
     }
     
     /**
@@ -469,6 +499,28 @@ class Booking extends Model {
         // Update vehicle status
         $new_status = $active_bookings > 0 ? 'rented' : 'available';
         $this->db->raw("UPDATE vehicles SET status = ? WHERE id = ?", [$new_status, $vehicle_id]);
+    }
+    
+    /**
+     * Get recent booking activity
+     */
+    public function getRecentActivity($limit = 10) {
+        $query = "SELECT 
+                    b.id,
+                    b.booking_reference,
+                    b.status,
+                    b.created_at,
+                    CONCAT(u.first_name, ' ', u.last_name) as user_name,
+                    CONCAT(v.brand, ' ', v.model) as vehicle_name
+                  FROM bookings b
+                  LEFT JOIN users u ON b.user_id = u.id
+                  LEFT JOIN vehicles v ON b.vehicle_id = v.id
+                  WHERE b.deleted_at IS NULL
+                  ORDER BY b.created_at DESC
+                  LIMIT ?";
+        
+        $stmt = $this->db->raw($query, [$limit]);
+        return $stmt->fetchAll();
     }
     
     /**

@@ -43,6 +43,10 @@
             <label>Daily Rate (₱)</label>
             <input v-model="newVehicle.daily_rate" class="form-input" type="number" step="0.01" required placeholder="2000.00" />
           </div>
+          <div class="form-group">
+            <label>Vehicle Image</label>
+            <input @change="handleImageUpload($event, 'new')" class="form-input" type="file" accept="image/*" />
+          </div>
         </div>
         <div class="form-actions">
           <button type="submit" class="action-btn">
@@ -92,6 +96,11 @@
               <option value="rented">Rented</option>
               <option value="maintenance">Maintenance</option>
             </select>
+          </div>
+          <div class="form-group">
+            <label>Vehicle Image</label>
+            <input @change="handleImageUpload($event, 'edit')" class="form-input" type="file" accept="image/*" />
+            <small v-if="editingVehicle.image" style="color: #666; display: block; margin-top: 4px;">Current: {{ editingVehicle.image }}</small>
           </div>
         </div>
         <div class="form-actions">
@@ -153,17 +162,21 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useApiStore } from '@/stores/api'
+import { useVehiclesStore } from '@/stores/vehicles'
 
 export default {
   name: 'VehicleManagement',
   setup() {
-    const loading = ref(false)
     const showAddForm = ref(false)
     const showEditForm = ref(false)
-    const vehicles = ref([])
     const apiStore = useApiStore()
+    const vehiclesStore = useVehiclesStore()
+    
+    // Use computed to get vehicles from store
+    const vehicles = computed(() => vehiclesStore.allVehicles)
+    const loading = computed(() => vehiclesStore.loading)
 
     const newVehicle = ref({
       brand: '',
@@ -171,7 +184,8 @@ export default {
       year: new Date().getFullYear(),
       plate_number: '',
       daily_rate: '',
-      status: 'available'
+      status: 'available',
+      image: null
     })
 
     const editingVehicle = ref({
@@ -181,53 +195,59 @@ export default {
       year: '',
       plate_number: '',
       daily_rate: '',
-      status: 'available'
+      status: 'available',
+      image: null
     })
 
-    const loadVehicles = async () => {
-      loading.value = true
+    const handleImageUpload = (event, formType) => {
+      const file = event.target.files[0]
+      console.log('=== handleImageUpload called ===')
+      console.log('Form type:', formType)
+      console.log('File:', file)
+      console.log('File instanceof File:', file instanceof File)
+      
+      if (file) {
+        if (formType === 'new') {
+          newVehicle.value.image = file
+          console.log('Set newVehicle.image:', newVehicle.value.image)
+        } else if (formType === 'edit') {
+          editingVehicle.value.image = file
+          console.log('Set editingVehicle.image:', editingVehicle.value.image)
+        }
+      }
+    }
+
+    const loadVehicles = async (force = false) => {
       try {
-        console.log('Loading vehicles from API...')
-        const response = await apiStore.get('/vehicles')
-        console.log('API Response:', response)
-        
-        // Backend returns {vehicles: [...], total: N}
-        // Axios wraps it in response.data, so we get response.data.vehicles
-        vehicles.value = response.vehicles || []
-        console.log('Loaded vehicles:', vehicles.value)
+        await vehiclesStore.loadVehicles(force)
       } catch (error) {
         console.error('Failed to load vehicles:', error)
-        // Keep existing mock data as fallback
-        vehicles.value = [
-          { id: 1, brand: 'Toyota', model: 'Camry', year: 2022, plate_number: 'ABC-1234', daily_rate: 2000.00, status: 'available' },
-          { id: 2, brand: 'Honda', model: 'CR-V', year: 2021, plate_number: 'DEF-5678', daily_rate: 3000.00, status: 'rented' },
-          { id: 3, brand: 'Ford', model: 'Transit', year: 2023, plate_number: 'GHI-9012', daily_rate: 3500.00, status: 'maintenance' }
-        ]
-      } finally {
-        loading.value = false
       }
     }
 
     const addVehicle = async () => {
       try {
-        const vehicleData = {
-          brand: newVehicle.value.brand,
-          model: newVehicle.value.model,
-          year: parseInt(newVehicle.value.year),
-          plate_number: newVehicle.value.plate_number,
-          daily_rate: parseFloat(newVehicle.value.daily_rate),
-          status: newVehicle.value.status
+        const formData = new FormData()
+        formData.append('brand', newVehicle.value.brand)
+        formData.append('model', newVehicle.value.model)
+        formData.append('year', parseInt(newVehicle.value.year))
+        formData.append('plate_number', newVehicle.value.plate_number)
+        formData.append('daily_rate', parseFloat(newVehicle.value.daily_rate))
+        formData.append('status', newVehicle.value.status)
+        
+        if (newVehicle.value.image) {
+          formData.append('image', newVehicle.value.image)
         }
         
-        console.log('Adding vehicle:', vehicleData)
-        const response = await apiStore.post('/vehicles', vehicleData)
+        console.log('Adding vehicle with FormData')
+        const response = await apiStore.post('/vehicles', formData)
         console.log('Add vehicle response:', response)
         
-        vehicles.value.unshift(response)
+        // Add to store instead of local array
+        vehiclesStore.addVehicle(response)
         cancelAdd()
         
-        // Refresh the list to make sure we have the latest data
-        await loadVehicles()
+        alert('Vehicle added successfully!')
       } catch (error) {
         console.error('Failed to add vehicle:', error)
         console.error('Error details:', error.response || error)
@@ -242,7 +262,8 @@ export default {
         year: new Date().getFullYear(),
         plate_number: '',
         daily_rate: '',
-        status: 'available'
+        status: 'available',
+        image: null
       }
     }
 
@@ -257,7 +278,8 @@ export default {
         year: vehicle.year,
         plate_number: vehicle.plate_number,
         daily_rate: vehicle.daily_rate,
-        status: vehicle.status
+        status: vehicle.status,
+        image: vehicle.image || null
       }
       
       // Show the edit form and hide add form
@@ -266,33 +288,42 @@ export default {
     }
 
     const updateVehicle = async () => {
+      console.log('=== UPDATE VEHICLE FUNCTION CALLED ===')
+      console.log('Editing vehicle data:', editingVehicle.value)
+      
       try {
-        const vehicleData = {
-          brand: editingVehicle.value.brand,
-          model: editingVehicle.value.model,
-          year: parseInt(editingVehicle.value.year),
-          plate_number: editingVehicle.value.plate_number,
-          daily_rate: parseFloat(editingVehicle.value.daily_rate),
-          status: editingVehicle.value.status
+        const formData = new FormData()
+        formData.append('brand', editingVehicle.value.brand)
+        formData.append('model', editingVehicle.value.model)
+        formData.append('year', parseInt(editingVehicle.value.year))
+        formData.append('plate_number', editingVehicle.value.plate_number)
+        formData.append('daily_rate', parseFloat(editingVehicle.value.daily_rate))
+        formData.append('status', editingVehicle.value.status)
+        
+        if (editingVehicle.value.image instanceof File) {
+          console.log('Adding image to FormData')
+          formData.append('image', editingVehicle.value.image)
         }
         
-        console.log('Updating vehicle:', editingVehicle.value.id, vehicleData)
-        const response = await apiStore.put(`/vehicles/${editingVehicle.value.id}`, vehicleData)
+        console.log('Updating vehicle ID:', editingVehicle.value.id)
+        console.log('FormData entries:')
+        for (let pair of formData.entries()) {
+          console.log(pair[0] + ': ' + pair[1])
+        }
+        
+        // Use POST instead of PUT for file uploads (PHP limitation with multipart/form-data)
+        const response = await apiStore.post(`/vehicles/${editingVehicle.value.id}`, formData)
         console.log('Update vehicle response:', response)
         
-        // Update the vehicle in the local list
-        const index = vehicles.value.findIndex(v => v.id === editingVehicle.value.id)
-        if (index !== -1) {
-          vehicles.value[index] = response
-        }
+        // Update in store
+        vehiclesStore.updateVehicle(editingVehicle.value.id, response)
         
+        alert('Vehicle updated successfully!')
         cancelEdit()
-        
-        // Refresh the list to make sure we have the latest data
-        await loadVehicles()
       } catch (error) {
         console.error('Failed to update vehicle:', error)
         console.error('Error details:', error.response || error)
+        alert('Failed to update vehicle: ' + (error.response?.data?.error || error.message))
       }
     }
 
@@ -305,7 +336,8 @@ export default {
         year: '',
         plate_number: '',
         daily_rate: '',
-        status: 'available'
+        status: 'available',
+        image: null
       }
     }
 
@@ -320,23 +352,12 @@ export default {
         const response = await apiStore.delete(`/vehicles/${id}`)
         console.log('Delete response received:', response)
         
-        // Remove from local list
-        vehicles.value = vehicles.value.filter(v => v.id !== id)
-        console.log('Updated vehicles list:', vehicles.value)
-          
-          // Refresh the list to make sure we have the latest data
-          console.log('Refreshing vehicle list...')
-          await loadVehicles()
+        // Remove from store
+        vehiclesStore.removeVehicle(id)
+        alert('Vehicle deleted successfully!')
         } catch (error) {
-          console.error('DELETE ERROR:', error)
-          console.error('Error message:', error.message)
-          console.error('Error response:', error.response)
-          console.error('Full error object:', JSON.stringify(error, null, 2))
-          
-          if (error.response) {
-            console.error('Response status:', error.response.status)
-            console.error('Response data:', error.response.data)
-          }
+        console.error('DELETE ERROR:', error)
+          alert('Failed to delete vehicle: ' + (error.response?.data?.error || error.message))
         }
     }
 
@@ -360,6 +381,7 @@ export default {
       vehicles,
       newVehicle,
       editingVehicle,
+      handleImageUpload,
       loadVehicles,
       addVehicle,
       cancelAdd,

@@ -346,12 +346,12 @@ export default {
       if (!path) return ''
       // Check if path already includes 'public/' or starts with 'images/'
       if (path.startsWith('public/')) {
-        return `http://localhost/Vehicle-Rental-/${path}`
+        return `http://localhost/Vehicle-Rental/${path}`
       } else if (path.startsWith('images/')) {
-        return `http://localhost/Vehicle-Rental-/public/${path}`
+        return `http://localhost/Vehicle-Rental/public/${path}`
       }
       // Fallback: assume it's just the filename
-      return `http://localhost/Vehicle-Rental-/public/images/licenses/${path}`
+      return `http://localhost/Vehicle-Rental/public/images/licenses/${path}`
     }
     
     const getInitials = (name) => {

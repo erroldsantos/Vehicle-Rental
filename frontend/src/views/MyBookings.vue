@@ -343,13 +343,6 @@
                 </div>
               </label>
               <label class="method-option">
-                <input type="radio" value="paymaya" v-model="paymentMethod">
-                <div class="method-card">
-                  <i class="fas fa-wallet"></i>
-                  <span>PayMaya</span>
-                </div>
-              </label>
-              <label class="method-option">
                 <input type="radio" value="grab_pay" v-model="paymentMethod">
                 <div class="method-card">
                   <i class="fas fa-car"></i>

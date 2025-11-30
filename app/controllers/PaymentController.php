@@ -9,6 +9,7 @@ class PaymentController extends Controller {
         $this->call->library('paymongo');
         $this->call->model('Payment');
         $this->call->model('Booking');
+        $this->call->model('Maintenance');
     }
     
     public function index() {
@@ -83,6 +84,30 @@ class PaymentController extends Controller {
         try {
             $input = $this->api->body();
             $payment = $this->Payment->updatePayment($id, $input);
+            
+            // If payment is being marked as completed, check if it's for maintenance
+            if (isset($input['status']) && $input['status'] === 'completed') {
+                $paymentDetails = $this->Payment->getPaymentById($id);
+                if ($paymentDetails && $paymentDetails['booking_id']) {
+                    // Check if there's a maintenance record for this booking
+                    $maintenanceRecords = $this->Maintenance->getByBookingId($paymentDetails['booking_id']);
+                    if (!empty($maintenanceRecords)) {
+                        foreach ($maintenanceRecords as $maintenance) {
+                            // Update maintenance payment_status to 'paid' and change status to 'scheduled'
+                            if ($maintenance['payment_status'] === 'pending') {
+                                $this->Maintenance->updateMaintenance($maintenance['id'], [
+                                    'payment_status' => 'paid',
+                                    'status' => 'scheduled'
+                                ]);
+                                
+                                // Don't complete the booking yet - wait until maintenance is actually completed
+                                // The booking will be completed when maintenance status is set to 'completed'
+                            }
+                        }
+                    }
+                }
+            }
+            
             $this->api->respond($payment);
         } catch (Exception $e) {
             $this->api->respond_error($e->getMessage(), $e->getCode() ?: 400);
@@ -364,6 +389,9 @@ class PaymentController extends Controller {
      * Confirm booking after successful payment
      */
     private function confirmBookingAfterPayment($booking_id, $payment_id) {
+        // Get payment details to check if it was a downpayment
+        $payment = $this->Payment->getPaymentById($payment_id);
+        
         // Update payment status
         $this->Payment->updatePayment($payment_id, [
             'status' => 'completed',
@@ -376,6 +404,28 @@ class PaymentController extends Controller {
         ]);
         
         error_log("Booking #{$booking_id} automatically confirmed after payment #{$payment_id}");
+        
+        // If this was a downpayment, create a pending payment for the balance
+        if ($payment && $payment['payment_type'] === 'downpayment') {
+            $booking = $this->Booking->getBookingById($booking_id);
+            if ($booking) {
+                $total_amount = floatval($booking['total_amount']);
+                $balance_amount = $total_amount * 0.7; // 70% balance
+                
+                // Create pending payment record for the balance
+                $balance_payment_data = [
+                    'booking_id' => $booking_id,
+                    'amount' => $balance_amount,
+                    'payment_method' => 'cash',
+                    'payment_type' => 'full',
+                    'payment_date' => date('Y-m-d'),
+                    'status' => 'pending'
+                ];
+                
+                $this->Payment->createPayment($balance_payment_data);
+                error_log("Created pending balance payment of ₱{$balance_amount} for booking #{$booking_id}");
+            }
+        }
     }
 
     /**
@@ -406,38 +456,7 @@ class PaymentController extends Controller {
         $this->api->require_method('GET');
         
         try {
-            // Get bookings with downpayment (not fully paid)
-            $query = "SELECT DISTINCT b.id, b.booking_reference, 
-                             CONCAT(u.first_name, ' ', u.last_name) as customer_name,
-                             b.total_amount,
-                             COALESCE(SUM(p.amount), 0) as paid_amount,
-                             'downpayment' as reason
-                      FROM bookings b
-                      LEFT JOIN users u ON b.user_id = u.id
-                      LEFT JOIN payments p ON b.id = p.booking_id AND p.status = 'completed'
-                      WHERE b.deleted_at IS NULL 
-                      AND b.status IN ('confirmed', 'active', 'ongoing', 'returned')
-                      GROUP BY b.id, b.booking_reference, u.first_name, u.last_name, b.total_amount
-                      HAVING paid_amount < b.total_amount
-                      
-                      UNION
-                      
-                      SELECT DISTINCT b.id, b.booking_reference,
-                             CONCAT(u.first_name, ' ', u.last_name) as customer_name,
-                             m.cost as total_amount,
-                             0 as paid_amount,
-                             'damage' as reason
-                      FROM bookings b
-                      LEFT JOIN users u ON b.user_id = u.id
-                      INNER JOIN maintenance m ON b.id = m.booking_id
-                      WHERE b.deleted_at IS NULL
-                      AND m.deleted_at IS NULL
-                      AND m.status = 'pending'
-                      
-                      ORDER BY booking_reference";
-            
-            $stmt = $this->db->raw($query);
-            $bookings = $stmt->fetchAll();
+            $bookings = $this->Payment->getBookingsNeedingPayment();
             
             $this->api->respond(['bookings' => $bookings]);
             

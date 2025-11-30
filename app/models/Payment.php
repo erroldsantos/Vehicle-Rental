@@ -202,5 +202,45 @@ class Payment extends Model {
     public function failPayment($id) {
         return $this->updatePayment($id, ['status' => 'failed']);
     }
+    
+    /**
+     * Get bookings that need payment
+     * Returns bookings with downpayment or pending damage repairs
+     */
+    public function getBookingsNeedingPayment() {
+        $query = "SELECT DISTINCT b.id, b.booking_reference, 
+                         CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                         b.total_amount,
+                         COALESCE(SUM(CASE WHEN p.status = 'completed' THEN p.amount ELSE 0 END), 0) as paid_amount,
+                         COALESCE(SUM(CASE WHEN p.status = 'pending' THEN p.amount ELSE 0 END), 0) as pending_amount,
+                         'downpayment' as reason
+                  FROM bookings b
+                  LEFT JOIN users u ON b.user_id = u.id
+                  LEFT JOIN payments p ON b.id = p.booking_id
+                  WHERE b.deleted_at IS NULL 
+                  AND b.status IN ('confirmed', 'active', 'ongoing', 'returned')
+                  GROUP BY b.id, b.booking_reference, u.first_name, u.last_name, b.total_amount
+                  HAVING paid_amount < b.total_amount AND (paid_amount + pending_amount) < b.total_amount
+                  
+                  UNION
+                  
+                  SELECT DISTINCT b.id, b.booking_reference,
+                         CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                         m.cost as total_amount,
+                         0 as paid_amount,
+                         0 as pending_amount,
+                         'damage' as reason
+                  FROM bookings b
+                  LEFT JOIN users u ON b.user_id = u.id
+                  INNER JOIN maintenance m ON b.id = m.booking_id
+                  WHERE b.deleted_at IS NULL
+                  AND m.deleted_at IS NULL
+                  AND m.status = 'pending'
+                  
+                  ORDER BY booking_reference";
+        
+        $stmt = $this->db->raw($query);
+        return $stmt->fetchAll();
+    }
 }
 ?>

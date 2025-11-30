@@ -4,8 +4,8 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 class Maintenance extends Model {
     protected $table = 'maintenance';
     protected $primary_key = 'id';
-    protected $soft_delete = true; // Enable soft deletes
-    protected $fillable = ['vehicle_id', 'booking_id', 'description', 'damage_type', 'scheduled_date', 'cost', 'status'];
+    protected $soft_delete = true;
+    protected $fillable = ['vehicle_id', 'booking_id', 'description', 'damage_type', 'scheduled_date', 'cost', 'status', 'payment_status'];
 
     /**
      * Get all maintenance records with vehicle details
@@ -20,7 +20,8 @@ class Maintenance extends Model {
                          b.booking_reference,
                          u.first_name,
                          u.last_name,
-                         CONCAT(u.first_name, ' ', u.last_name) as customer_name
+                         CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                         m.payment_status
                   FROM maintenance m
                   LEFT JOIN vehicles v ON m.vehicle_id = v.id
                   LEFT JOIN bookings b ON m.booking_id = b.id
@@ -65,7 +66,8 @@ class Maintenance extends Model {
                          b.booking_reference,
                          u.first_name,
                          u.last_name,
-                         CONCAT(u.first_name, ' ', u.last_name) as customer_name
+                         CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                         m.payment_status
                   FROM maintenance m
                   LEFT JOIN vehicles v ON m.vehicle_id = v.id
                   LEFT JOIN bookings b ON m.booking_id = b.id
@@ -96,6 +98,7 @@ class Maintenance extends Model {
         // Set defaults
         $data['status'] = $data['status'] ?? 'scheduled';
         $data['cost'] = $data['cost'] ?? 0;
+        $data['payment_status'] = $data['payment_status'] ?? 'paid';
         
         // Use ORM insert
         $this->insert($data);
@@ -170,6 +173,11 @@ class Maintenance extends Model {
         // Update vehicle status back to available
         $this->db->raw("UPDATE vehicles SET status = 'available' WHERE id = ?", [$maintenance['vehicle_id']]);
         
+        // If maintenance is linked to a booking, complete the booking
+        if ($maintenance['booking_id']) {
+            $this->db->raw("UPDATE bookings SET status = 'completed' WHERE id = ? AND status != 'completed'", [$maintenance['booking_id']]);
+        }
+        
         // Return the updated record with vehicle details
         return $this->getMaintenanceById($id);
     }
@@ -237,9 +245,9 @@ class Maintenance extends Model {
 
     /**
      * Create damage inspection record
+     * Note: Payment should be created by the controller after this
      */
     public function createDamageInspection($data) {
-        // Validate required fields
         $required = ['vehicle_id', 'booking_id', 'damage_type', 'cost'];
         foreach ($required as $field) {
             if (empty($data[$field]) && $data[$field] !== 0) {
@@ -262,17 +270,20 @@ class Maintenance extends Model {
             'description' => $defaultDescription,
             'scheduled_date' => date('Y-m-d'),
             'cost' => $data['cost'],
-            'status' => 'pending' // Pending until customer pays
+            'status' => 'pending',
+            'payment_status' => 'pending'
         ];
 
+        // Create maintenance record
         return $this->createMaintenance($inspectionData);
     }
 
+
     /**
-     * Mark damage as paid and move to scheduled
+     * Update payment status when payment is completed
      */
-    public function markDamagePaid($id) {
-        return $this->updateMaintenance($id, ['status' => 'scheduled']);
+    public function updatePaymentStatus($id, $payment_status) {
+        return $this->updateMaintenance($id, ['payment_status' => $payment_status]);
     }
 }
 

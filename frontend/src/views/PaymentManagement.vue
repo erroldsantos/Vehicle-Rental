@@ -460,11 +460,7 @@ export default {
       window.print()
     }
 
-    const exportReport = () => {
-      
-    }
-
-    // Helper functions
+    // Helper functions (defined before exportReport so they can be used)
     const formatAmount = (amount) => {
       return parseFloat(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     }
@@ -497,6 +493,52 @@ export default {
         'pending': 'Pending',
         'completed': 'Paid'
       }[status] || 'Unknown'
+    }
+
+    const exportReport = () => {
+      try {
+        // Prepare CSV data
+        let csv = 'Booking Reference,Customer,Vehicle,Amount,Method,Type,Status,Date\n'
+        
+        payments.value.forEach(payment => {
+          const row = [
+            payment.booking_reference || 'N/A',
+            getCustomerName(payment),
+            getVehicleInfo(payment),
+            formatAmount(payment.amount),
+            payment.payment_method || 'N/A',
+            payment.payment_type === 'downpayment' ? 'Down (30%)' : 'Full',
+            getStatusText(payment.status),
+            formatDate(payment.payment_date)
+          ]
+          csv += row.map(field => `"${field}"`).join(',') + '\n'
+        })
+        
+        // Add summary at the end
+        csv += '\n'
+        csv += 'Summary\n'
+        csv += `Total Revenue,₱${formatAmount(stats.total_revenue)}\n`
+        csv += `Paid Invoices,${stats.paid_count}\n`
+        csv += `Pending Payments,${stats.pending_count}\n`
+        csv += `Overdue Payments,${stats.overdue_count}\n`
+        
+        // Create download link
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        const url = URL.createObjectURL(blob)
+        
+        const date = new Date().toISOString().split('T')[0]
+        link.setAttribute('href', url)
+        link.setAttribute('download', `payment-report-${date}.csv`)
+        link.style.visibility = 'hidden'
+        
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } catch (error) {
+        console.error('Export error:', error)
+        alert('Failed to export report: ' + error.message)
+      }
     }
 
     onMounted(async () => {

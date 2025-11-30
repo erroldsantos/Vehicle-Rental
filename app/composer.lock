@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c0e8f7e9e2aaabe952e63b179f8ff2c5",
+    "content-hash": "2cd962ab49280422b8d4a993a09b2c87",
     "packages": [
         {
             "name": "paymongo/paymongo-php",

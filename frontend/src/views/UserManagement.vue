@@ -54,7 +54,6 @@
               <option value="">All Status</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
-              <option value="suspended">Suspended</option>
             </select>
             <input v-model="filters.search" @input="debounceSearch" placeholder="Search users..." class="form-control" />
           </div>
@@ -112,7 +111,6 @@
             <select v-model="newUser.status" class="form-control" required>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
-              <option value="suspended">Suspended</option>
             </select>
           </div>
           
@@ -175,7 +173,6 @@
             <select v-model="editingUser.status" class="form-control" required>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
-              <option value="suspended">Suspended</option>
             </select>
           </div>
           

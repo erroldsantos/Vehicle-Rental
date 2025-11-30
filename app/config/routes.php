@@ -63,6 +63,7 @@ $router->group('/api', function () use ($router) {
     $router->get('/vehicles/{id}/booked-dates', 'VehiclesController::bookedDates');
     $router->post('/vehicles', 'VehiclesController::create');
     $router->put('/vehicles/{id}', 'VehiclesController::update');
+    $router->post('/vehicles/{id}', 'VehiclesController::update'); // POST for file uploads
     $router->delete('/vehicles/{id}', 'VehiclesController::delete');
 
     // Maintenance Management

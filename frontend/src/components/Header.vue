@@ -9,11 +9,6 @@ npm run dev<template>
     </div>
     
     <div class="header-right">
-      <div class="notifications">
-        <i class="fas fa-bell icon"></i>
-        <span class="notification-badge" v-if="notificationCount > 0">{{ notificationCount }}</span>
-      </div>
-      
       <div class="user-profile" @click="toggleUserMenu">
         <div class="user-info">
           <span class="user-name">Admin User</span>
@@ -56,7 +51,6 @@ export default {
     const route = useRoute()
     const router = useRouter()
     const showUserMenu = ref(false)
-    const notificationCount = ref(3)
     
     const pageTitle = computed(() => {
       const titles = {
@@ -105,7 +99,6 @@ export default {
     return {
       pageTitle,
       showUserMenu,
-      notificationCount,
       toggleSidebar,
       toggleUserMenu,
       viewProfile,
@@ -171,41 +164,7 @@ export default {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 20px;
   position: relative;
-}
-
-.notifications {
-  position: relative;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 6px;
-  transition: background 0.2s ease;
-}
-
-.notifications:hover {
-  background: #f3f4f6;
-}
-
-.notifications .icon {
-  font-size: 18px;
-  color: #6b7280;
-}
-
-.notification-badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  background: #ef4444;
-  color: white;
-  border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
 }
 
 .user-profile {
@@ -216,6 +175,7 @@ export default {
   padding: 8px 12px;
   border-radius: 8px;
   transition: background 0.2s ease;
+  position: relative;
 }
 
 .user-profile:hover {

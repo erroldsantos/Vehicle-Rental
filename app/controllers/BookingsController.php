@@ -7,6 +7,7 @@ class BookingsController extends Controller {
         parent::__construct();
         $this->call->library('api');
         $this->call->model('Booking');
+        $this->call->model('User');
     }
     
     /**
@@ -17,6 +18,9 @@ class BookingsController extends Controller {
         $this->api->require_method('GET');
         
         try {
+            // Update booking statuses based on current date
+            $this->Booking->updateBookingStatuses();
+            
             // Get all GET parameters if any exist
             $getAllParams = !empty($_GET) ? $this->io->get() : [];
             $filters = [
@@ -29,13 +33,6 @@ class BookingsController extends Controller {
             ];
             
             $bookings = $this->Booking->getAllBookings($filters);
-            
-            // Convert objects to arrays for consistent JSON output
-            if (!empty($bookings)) {
-                $bookings = array_map(function($booking) {
-                    return is_object($booking) ? (array)$booking : $booking;
-                }, $bookings);
-            }
             
             // Get statistics
             $stats = $this->Booking->getBookingStats();
@@ -63,6 +60,9 @@ class BookingsController extends Controller {
                 return;
             }
 
+            // Update booking statuses based on current date
+            $this->Booking->updateBookingStatuses();
+
             // Find booking
             $booking = $this->Booking->getBookingById($id);
             
@@ -70,9 +70,6 @@ class BookingsController extends Controller {
                 $this->api->respond_error('Booking not found', 404);
                 return;
             }
-            
-            // Convert object to array if needed
-            $booking = is_object($booking) ? (array)$booking : $booking;
             
             $this->api->respond($booking);
             
@@ -96,7 +93,6 @@ class BookingsController extends Controller {
             
             // Fetch and return the created booking
             $booking = $this->Booking->getBookingById($booking_id);
-            $booking = is_object($booking) ? (array)$booking : $booking;
             
             $this->api->respond($booking, 201);
             
@@ -140,7 +136,6 @@ class BookingsController extends Controller {
             
             // Fetch and return the updated booking
             $booking = $this->Booking->getBookingById($id);
-            $booking = is_object($booking) ? (array)$booking : $booking;
             
             $response = ['booking' => $booking];
             if ($warning) {
@@ -236,13 +231,6 @@ class BookingsController extends Controller {
             
             $vehicles = $this->Booking->getAvailableVehicles($start_date, $end_date);
             
-            // Convert objects to arrays for consistent JSON output
-            if (!empty($vehicles)) {
-                $vehicles = array_map(function($vehicle) {
-                    return is_object($vehicle) ? (array)$vehicle : $vehicle;
-                }, $vehicles);
-            }
-            
             $this->api->respond(['vehicles' => $vehicles]);
             
         } catch (Exception $e) {
@@ -258,8 +246,7 @@ class BookingsController extends Controller {
         $this->api->require_method('GET');
         
         try {
-            $stmt = $this->db->raw("SELECT id, first_name, last_name, email FROM users WHERE deleted_at IS NULL ORDER BY first_name, last_name");
-            $users = $stmt->fetchAll();
+            $users = $this->User->getUsersForBooking();
             
             $this->api->respond(['users' => $users]);
             

@@ -27,13 +27,6 @@ class UsersController extends Controller {
 
             $users = $this->User->getAllUsers($filters);
             
-            // Convert objects to arrays for consistent JSON output
-            if (!empty($users)) {
-                $users = array_map(function($user) {
-                    return is_object($user) ? (array)$user : $user;
-                }, $users);
-            }
-            
             // Get statistics
             $stats = $this->User->getUserStats();
             
@@ -67,8 +60,6 @@ class UsersController extends Controller {
                 return;
             }
             
-            $user = is_object($user) ? (array)$user : $user;
-            
             $this->api->respond($user);
             
         } catch (Exception $e) {
@@ -92,7 +83,6 @@ class UsersController extends Controller {
             
             // Fetch and return the created user
             $user = $this->User->getUserById($userId);
-            $user = is_object($user) ? (array)$user : $user;
             
             $this->api->respond($user, 201);
             
@@ -121,7 +111,6 @@ class UsersController extends Controller {
             
             // Fetch and return the updated user
             $user = $this->User->getUserById($id);
-            $user = is_object($user) ? (array)$user : $user;
             
             $this->api->respond($user);
             
@@ -185,8 +174,6 @@ class UsersController extends Controller {
                 return;
             }
             
-            $user = is_object($user) ? (array)$user : $user;
-            
             $this->api->respond(['user' => $user, 'message' => 'Login successful']);
             
         } catch (Exception $e) {
@@ -219,7 +206,6 @@ class UsersController extends Controller {
             
             // Get the created user (without password)
             $user = $this->User->getUserById($userId);
-            $user = is_object($user) ? (array)$user : $user;
             
             // Remove password from output (just in case)
             if (isset($user['password'])) {
@@ -313,7 +299,6 @@ class UsersController extends Controller {
             
             // Get updated user
             $user = $this->User->getUserById($id);
-            $user = is_object($user) ? (array)$user : $user;
             
             // Remove sensitive data
             if (isset($user['password'])) {
@@ -349,8 +334,6 @@ class UsersController extends Controller {
                 $this->api->respond_error('User not found', 404);
                 return;
             }
-            
-            $user = is_object($user) ? (array)$user : $user;
             
             $response = [
                 'license_status' => $user['license_status'] ?? 'not_submitted',

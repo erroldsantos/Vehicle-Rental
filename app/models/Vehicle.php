@@ -5,7 +5,7 @@ class Vehicle extends Model {
     protected $table = 'vehicles';
     protected $primary_key = 'id';
     protected $soft_delete = true; // Enable soft deletes
-    protected $fillable = ['brand', 'model', 'year', 'plate_number', 'daily_rate', 'status'];
+    protected $fillable = ['brand', 'model', 'year', 'plate_number', 'daily_rate', 'status', 'image'];
 
     
     /**
@@ -131,6 +131,39 @@ class Vehicle extends Model {
         return $stmt->fetchAll();
     }
 
+    /**
+     * Get booked dates for a specific vehicle
+     */
+    public function getBookedDates($vehicle_id) {
+        // Get all confirmed and pending bookings for this vehicle
+        $bookedDates = $this->db->raw("
+            SELECT start_date, end_date 
+            FROM bookings 
+            WHERE vehicle_id = ? 
+            AND status IN ('confirmed', 'pending')
+            AND deleted_at IS NULL
+            ORDER BY start_date
+        ", [$vehicle_id])->fetchAll();
+        
+        return $bookedDates;
+    }
+    
+    /**
+     * Get maintenance dates for a specific vehicle
+     */
+    public function getMaintenanceDates($vehicle_id) {
+        $maintenanceDates = $this->db->raw("
+            SELECT scheduled_date 
+            FROM maintenance 
+            WHERE vehicle_id = ? 
+            AND status = 'scheduled'
+            AND deleted_at IS NULL
+            ORDER BY scheduled_date
+        ", [$vehicle_id])->fetchAll();
+        
+        return $maintenanceDates;
+    }
+    
     /**
      * Get vehicle statistics
      */
