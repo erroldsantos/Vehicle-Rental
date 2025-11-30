@@ -203,7 +203,6 @@ return [
 ngrok http 80
 # Use the ngrok URL for webhook: https://abc123.ngrok.io/api/webhook/paymongo
 ```
----
 
 ## File Upload Configuration
 
@@ -264,13 +263,8 @@ $config['image_base_url'] = 'http://localhost/Vehicle-Rental/public/images/';
 
 **Production:**
 ```php
-$config['image_base_url'] = 'https://vehicle-rental-production-6cce.up.railway.app/public/images/';
+$config['image_base_url'] = 'https://yourdomain.com/public/images/';
 ```
-3. **Setup Webhook:**
-   - Dashboard → Developers → Webhooks
-   - Create webhook for: `payment.paid`
-   - Webhook URL: `https://vehicle-rental-production-6cce.up.railway.app/api/webhook/paymongo`
-   - Copy Webhook Secret
 
 ---
 
